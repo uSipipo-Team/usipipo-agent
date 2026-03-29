@@ -66,9 +66,9 @@ jobs:
           cd ..
         done
     
-    - name: Download install script
+    - name: Copy install script
       run: |
-        curl -fsSL https://raw.githubusercontent.com/uSipipo-Team/usipipo-agent/main/scripts/install.sh -o artifacts/install.sh
+        cp scripts/install.sh artifacts/install.sh
         chmod +x artifacts/install.sh
     
     - name: Generate SHA256 checksums
