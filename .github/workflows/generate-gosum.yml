@@ -6,6 +6,10 @@ on:
     paths:
       - '.github/workflows/generate-gosum.yml'  # Trigger on self-change
 
+# Grant write permissions to commit back to repository
+permissions:
+  contents: write
+
 jobs:
   generate:
     runs-on: ubuntu-latest
