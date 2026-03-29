@@ -66,10 +66,23 @@ jobs:
           cd ..
         done
     
+    - name: Download install script
+      run: |
+        curl -fsSL https://raw.githubusercontent.com/uSipipo-Team/usipipo-agent/main/scripts/install.sh -o artifacts/install.sh
+        chmod +x artifacts/install.sh
+    
+    - name: Generate SHA256 checksums
+      run: |
+        cd artifacts
+        sha256sum *.zip > SHA256SUMS
+    
     - name: Create Release
       uses: softprops/action-gh-release@v1
       with:
-        files: artifacts/*.zip
+        files: |
+          artifacts/*.zip
+          artifacts/SHA256SUMS
+          artifacts/install.sh
         generate_release_notes: true
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
