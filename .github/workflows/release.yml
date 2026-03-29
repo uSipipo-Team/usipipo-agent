@@ -28,7 +28,6 @@ jobs:
 
     - name: Download dependencies
       run: |
-        cd /home/mowgli/usipipo/usipipo-agent
         go mod download
         go mod verify
 
