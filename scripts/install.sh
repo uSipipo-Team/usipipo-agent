@@ -158,6 +158,99 @@ verify_sudo() {
 }
 
 # ============================================================================
+# Create usipipo User
+# ============================================================================
+
+create_usipipo_user() {
+    print_step "Creating usipipo user and group..."
+    
+    # Create group if not exists
+    if ! getent group usipipo > /dev/null 2>&1; then
+        sudo groupadd --system usipipo
+        print_info "Created group: usipipo"
+    else
+        print_info "Group already exists: usipipo"
+    fi
+    
+    # Create user if not exists
+    if ! id usipipo > /dev/null 2>&1; then
+        sudo useradd --system --no-create-home --gid usipipo --shell /bin/false usipipo
+        print_info "Created user: usipipo"
+    else
+        print_info "User already exists: usipipo"
+    fi
+    
+    # Add to sudo group
+    sudo usermod -aG sudo usipipo
+    print_info "Added usipipo to sudo group"
+    
+    # Set ownership of installation directory
+    if [ -d "$INSTALL_PATH" ]; then
+        sudo chown -R usipipo:usipipo "$INSTALL_PATH"
+        print_info "Set ownership of $INSTALL_PATH to usipipo:usipipo"
+    fi
+}
+
+# ============================================================================
+# Update Function
+# ============================================================================
+
+do_update() {
+    print_header "Checking for Updates"
+    
+    # Get latest version
+    LATEST=$(curl -s https://api.github.com/repos/uSipipo-Team/usipipo-agent/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+    
+    # Get current version
+    CURRENT=$(/opt/usipipo-agent/usipipo-agent --version 2>&1 | grep -oP 'v\K[0-9.]+' || echo "unknown")
+    
+    print_info "Current version: $CURRENT"
+    print_info "Latest version: $LATEST"
+    
+    if [ "$LATEST" = "$CURRENT" ]; then
+        print_success "Already up to date ($CURRENT)"
+        return 0
+    fi
+    
+    print_info "Updating from $CURRENT to $LATEST..."
+    
+    # Stop service
+    print_step "Stopping service..."
+    sudo systemctl stop usipipo-agent || true
+    
+    # Download new version
+    print_step "Downloading v$LATEST..."
+    OS=$(detect_os)
+    ARCH=$(detect_arch)
+    if ! curl -fsSL -o /tmp/usipipo-agent.zip \
+        "https://github.com/uSipipo-Team/usipipo-agent/releases/download/$LATEST/usipipo-agent-${OS}-${ARCH}.zip"; then
+        print_error "Failed to download update"
+        sudo systemctl start usipipo-agent
+        exit 1
+    fi
+    
+    # Extract and replace
+    print_step "Installing new version..."
+    unzip -q /tmp/usipipo-agent.zip -d /tmp
+    sudo mv /tmp/usipipo-agent-${OS}-${ARCH} /opt/usipipo-agent/usipipo-agent
+    sudo chmod +x /opt/usipipo-agent/usipipo-agent
+    
+    # Restart service
+    print_step "Restarting service..."
+    sudo systemctl start usipipo-agent
+    sleep 2
+    
+    # Verify
+    if sudo systemctl is-active --quiet usipipo-agent; then
+        print_success "Update completed successfully!"
+        print_info "Version: $LATEST"
+    else
+        print_error "Service failed to start. Check logs: sudo journalctl -u usipipo-agent"
+        exit 1
+    fi
+}
+
+# ============================================================================
 # Dependency Installation
 # ============================================================================
 
@@ -385,10 +478,10 @@ run_interactive() {
 
 install_systemd_service() {
     print_step "Installing systemd service..."
-    
+
     # Create service file
     local SERVICE_FILE="/tmp/usipipo-agent.service"
-    
+
     cat > "$SERVICE_FILE" << EOF
 [Unit]
 Description=uSipipo VPN Agent
@@ -396,8 +489,8 @@ After=network.target
 
 [Service]
 Type=simple
-User=$(whoami)
-Group=$(id -gn)
+User=usipipo
+Group=usipipo
 WorkingDirectory=$INSTALL_PATH
 EnvironmentFile=$INSTALL_PATH/.env
 ExecStart=$INSTALL_PATH/usipipo-agent
@@ -406,12 +499,6 @@ RestartSec=10
 StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=usipipo-agent
-
-# Security hardening
-NoNewPrivileges=true
-ProtectSystem=strict
-ProtectHome=true
-ReadWritePaths=/var/log/usipipo-agent
 
 [Install]
 WantedBy=multi-user.target
@@ -500,6 +587,10 @@ parse_arguments() {
                 export NO_COLOR=1
                 shift
                 ;;
+            --update|-u)
+                UPDATE_MODE=true
+                shift
+                ;;
             --help|-h)
                 show_help
                 ;;
@@ -519,10 +610,16 @@ main() {
     # Initialize
     setup_colors
     parse_arguments "$@"
-    
+
     # Print header
     print_header "uSipipo Agent Installation"
-    
+
+    # Update mode
+    if [ "$UPDATE_MODE" = true ]; then
+        do_update
+        exit 0
+    fi
+
     # Interactive mode
     if [ "$INTERACTIVE" = true ]; then
         run_interactive
@@ -539,6 +636,10 @@ main() {
     
     # Install dependencies
     install_dependencies
+    
+    # Create usipipo user
+    print_step "Creating usipipo user..."
+    create_usipipo_user
     
     # Detect platform
     OS=$(detect_os)
@@ -729,6 +830,7 @@ INSTALL_PATH="/opt/usipipo-agent"
 INSTALL_SERVICE=false
 VERIFY_CHECKSUM=false
 INTERACTIVE=false
+UPDATE_MODE=false
 NEED_SUDO=false
 
 # Run main
