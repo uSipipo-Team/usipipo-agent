@@ -6,12 +6,91 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"golang.org/x/time/rate"
 )
+
+// RateLimiterConfig holds rate limiting configuration
+type RateLimiterConfig struct {
+	RequestsPerSecond float64
+	BurstSize         int
+	Enabled           bool
+}
+
+// Visitor holds rate limiter for a specific IP
+type Visitor struct {
+	limiter  *rate.Limiter
+	lastSeen time.Time
+}
+
+// RateLimiter manages rate limiters for all visitors
+type RateLimiter struct {
+	visitors map[string]*Visitor
+	config   RateLimiterConfig
+	mu       sync.RWMutex
+}
+
+// NewRateLimiter creates a new rate limiter
+func NewRateLimiter(config RateLimiterConfig) *RateLimiter {
+	return &RateLimiter{
+		visitors: make(map[string]*Visitor),
+		config:   config,
+	}
+}
+
+// Allow checks if a request from this IP is allowed
+func (rl *RateLimiter) Allow(ip string) bool {
+	rl.mu.Lock()
+	defer rl.mu.Unlock()
+
+	visitor, exists := rl.visitors[ip]
+	if !exists {
+		visitor = &Visitor{
+			limiter: rate.NewLimiter(rate.Limit(rl.config.RequestsPerSecond), rl.config.BurstSize),
+		}
+		rl.visitors[ip] = visitor
+	}
+
+	visitor.lastSeen = time.Now()
+	return visitor.limiter.Allow()
+}
+
+// Cleanup removes old visitors (called periodically)
+func (rl *RateLimiter) Cleanup() {
+	rl.mu.Lock()
+	defer rl.mu.Unlock()
+
+	for ip, visitor := range rl.visitors {
+		if time.Since(visitor.lastSeen) > 3*time.Minute {
+			delete(rl.visitors, ip)
+		}
+	}
+}
+
+// RateLimitMiddleware creates a rate limiting middleware
+func RateLimitMiddleware(rl *RateLimiter) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if !rl.config.Enabled {
+			c.Next()
+			return
+		}
+
+		ip := c.ClientIP()
+		if !rl.Allow(ip) {
+			c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{
+				"error": "Rate limit exceeded. Please try again later.",
+			})
+			return
+		}
+
+		c.Next()
+	}
+}
 
 // Server represents the HTTP server
 type Server struct {
@@ -19,8 +98,8 @@ type Server struct {
 	router     *gin.Engine
 }
 
-// NewServer creates a new HTTP server with Gin
-func NewServer(apiKey, outlineAPIURL string) *Server {
+// NewServer creates a new HTTP server with Gin and rate limiting
+func NewServer(apiKey, outlineAPIURL string, rateConfig RateLimiterConfig) *Server {
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.New()
 	router.Use(gin.Recovery())
@@ -35,6 +114,21 @@ func NewServer(apiKey, outlineAPIURL string) *Server {
 		MaxAge:           12 * time.Hour,
 	}))
 
+	// Rate limiting
+	rateLimiter := NewRateLimiter(rateConfig)
+
+	// Start cleanup goroutine
+	go func() {
+		ticker := time.NewTicker(1 * time.Minute)
+		defer ticker.Stop()
+		for range ticker.C {
+			rateLimiter.Cleanup()
+		}
+	}()
+
+	// Apply rate limiting to all routes
+	router.Use(RateLimitMiddleware(rateLimiter))
+
 	// Public routes
 	router.GET("/health", HealthHandler)
 
@@ -44,11 +138,11 @@ func NewServer(apiKey, outlineAPIURL string) *Server {
 	{
 		protected.GET("/status", StatusHandler)
 		protected.GET("/metrics", MetricsHandler)
-		
+
 		// Outline VPN management routes
 		protected.POST("/outline/keys", CreateOutlineKeyHandler)
 		protected.DELETE("/outline/keys/:id", DeleteOutlineKeyHandler)
-		
+
 		// WireGuard VPN management routes
 		protected.POST("/wireguard/peers", CreateWireGuardPeerHandler)
 		protected.DELETE("/wireguard/peers/:name", DeleteWireGuardPeerHandler)
