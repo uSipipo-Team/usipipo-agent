@@ -32,6 +32,8 @@ func main() {
 	log.Printf("Backend URL: %s", cfg.BackendURL)
 	log.Printf("Outline API URL: %s", cfg.OutlineAPIURL)
 	log.Printf("WireGuard Interface: %s", cfg.WireGuardInterface)
+	log.Printf("Rate Limiting: enabled=%v, rps=%.1f, burst=%d", 
+		cfg.RateLimitEnabled, cfg.RateLimitRPS, cfg.RateLimitBurst)
 
 	// Initialize metrics collector
 	metricsCollector := metrics.NewCollector(cfg.ServerID)
@@ -57,12 +59,17 @@ func main() {
 		log.Printf("WireGuard client initialized successfully")
 	}
 
+	// Create HTTP server with rate limiting
+	rateConfig := api.RateLimiterConfig{
+		RequestsPerSecond: cfg.RateLimitRPS,
+		BurstSize:         cfg.RateLimitBurst,
+		Enabled:           cfg.RateLimitEnabled,
+	}
+	server := api.NewServer(cfg.APIKey, cfg.OutlineAPIURL, rateConfig)
+
 	// Initialize and start metrics reporter
 	metricsReporter := reporter.NewReporter(cfg.BackendURL, cfg.ServerID, cfg.APIKey, metricsCollector)
 	go metricsReporter.Start()
-
-	// Create HTTP server
-	server := api.NewServer(cfg.APIKey, cfg.OutlineAPIURL)
 
 	// Start HTTP server in goroutine
 	go func() {
