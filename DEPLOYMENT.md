@@ -6,6 +6,65 @@
 - WireGuard installed and configured
 - Caddy installed (for HTTPS)
 
+## WireGuard Configuration
+
+### 1. Install WireGuard Tools
+
+```bash
+sudo apt install wireguard  # Debian/Ubuntu
+sudo yum install wireguard-tools  # RHEL/CentOS
+```
+
+### 2. Configure Sudo for Agent
+
+The agent requires sudo privileges to execute WireGuard commands (`wg genkey`, `wg pubkey`, etc.).
+
+```bash
+# Copy sudoers configuration
+sudo cp scripts/usipipo-agent.sudoers /etc/sudoers.d/
+sudo chmod 440 /etc/sudoers.d/usipipo-agent
+
+# Validate configuration
+sudo visudo -c -f /etc/sudoers.d/usipipo-agent
+# Expected: /etc/sudoers.d/usipipo-agent: parsed OK
+
+# Test sudo access
+sudo -u usipipo wg genkey  # Should output key without password prompt
+```
+
+### 3. Verify WireGuard Interface
+
+```bash
+# Check if wg0 exists
+wg show wg0
+
+# If not configured, see /etc/wireguard/wg0.conf
+# Or use wg-quick: sudo wg-quick up wg0
+```
+
+### 4. Test WireGuard API
+
+After agent is running:
+
+```bash
+# Create peer
+curl -X POST -H "X-API-Key: your-api-key" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"test-peer"}' \
+  http://localhost:8080/wireguard/peers
+
+# Verify with wg
+wg show wg0 | grep test-peer
+
+# Delete peer
+curl -X DELETE -H "X-API-Key: your-api-key" \
+  http://localhost:8080/wireguard/peers/test-peer
+```
+
+For detailed WireGuard setup, see [docs/WIREGUARD-SETUP.md](docs/WIREGUARD-SETUP.md).
+
+---
+
 ## Download Pre-built Binaries
 
 **From GitHub Releases:**

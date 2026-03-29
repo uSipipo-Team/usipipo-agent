@@ -1,0 +1,32 @@
+# /etc/sudoers.d/usipipo-agent
+#
+# uSipipo Agent - WireGuard Operations
+#
+# This file grants the usipipo user passwordless sudo access
+# to specific WireGuard commands required for VPN management.
+#
+# SECURITY NOTES:
+# - Only specific wg commands are allowed
+# - No shell access or arbitrary command execution
+# - Commands are restricted to wg0 interface where applicable
+# - Audit trail available in /var/log/auth.log
+#
+# INSTALLATION:
+#   sudo cp scripts/usipipo-agent.sudoers /etc/sudoers.d/
+#   sudo chmod 440 /etc/sudoers.d/usipipo-agent
+#   sudo visudo -c -f /etc/sudoers.d/usipipo-agent  # Validate
+#
+
+# Allow usipipo user to run WireGuard commands without password
+usipipo ALL=(ALL) NOPASSWD: /usr/bin/wg genkey
+usipipo ALL=(ALL) NOPASSWD: /usr/bin/wg pubkey
+usipipo ALL=(ALL) NOPASSWD: /usr/bin/wg set wg0 peer *
+usipipo ALL=(ALL) NOPASSWD: /usr/bin/wg set wg0 peer * allowed-ips *
+usipipo ALL=(ALL) NOPASSWD: /usr/bin/wg show wg0
+usipipo ALL=(ALL) NOPASSWD: /usr/bin/wg show wg0 dump
+usipipo ALL=(ALL) NOPASSWD: /usr/bin/wg show wg0 public-key
+usipipo ALL=(ALL) NOPASSWD: /usr/bin/wg show wg0 peers
+usipipo ALL=(ALL) NOPASSWD: /usr/bin/wg show wg0 allowed-ips
+usipipo ALL=(ALL) NOPASSWD: /usr/bin/wg show wg0 latest-handshakes
+
+# End of usipipo-agent sudoers configuration

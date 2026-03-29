@@ -21,5 +21,9 @@ ProtectSystem=strict
 ProtectHome=true
 ReadWritePaths=/var/log/usipipo-agent
 
+# Capabilities for WireGuard operations
+AmbientCapabilities=CAP_NET_ADMIN CAP_NET_RAW
+CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_RAW
+
 [Install]
 WantedBy=multi-user.target
