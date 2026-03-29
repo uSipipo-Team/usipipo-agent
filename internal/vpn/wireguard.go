@@ -206,15 +206,17 @@ func (c *WireGuardClient) runCommandWithInput(name, input string, args ...string
 
 	var cmd *exec.Cmd
 
-	// Prepend sudo for wg commands
+	// Prepend sudo for wg commands and use pipe for stdin
 	if name == "wg" {
-		sudoArgs := append([]string{"wg"}, args...)
-		cmd = exec.CommandContext(ctx, "sudo", sudoArgs...)
+		// Use bash -c to properly handle stdin with sudo
+		bashCmd := fmt.Sprintf("wg %s", strings.Join(args, " "))
+		cmd = exec.CommandContext(ctx, "bash", "-c", bashCmd)
+		cmd.Stdin = strings.NewReader(input)
 	} else {
 		cmd = exec.CommandContext(ctx, name, args...)
+		cmd.Stdin = strings.NewReader(input)
 	}
 
-	cmd.Stdin = strings.NewReader(input)
 	output, err := cmd.Output()
 	if err != nil {
 		if exitErr, ok := err.(*exec.ExitError); ok {
