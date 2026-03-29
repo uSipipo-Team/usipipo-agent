@@ -1,0 +1,25 @@
+[Unit]
+Description=uSipipo VPN Agent
+After=network.target
+
+[Service]
+Type=simple
+User=usipipo
+Group=usipipo
+WorkingDirectory=/opt/usipipo-agent
+EnvironmentFile=/opt/usipipo-agent/.env
+ExecStart=/opt/usipipo-agent/usipipo-agent
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=usipipo-agent
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/log/usipipo-agent
+
+[Install]
+WantedBy=multi-user.target
