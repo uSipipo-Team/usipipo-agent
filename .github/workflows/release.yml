@@ -26,10 +26,8 @@ jobs:
         go-version: '1.21'
         cache: true
 
-    - name: Download dependencies
-      run: |
-        go mod download
-        go mod verify
+    - name: Generate go.sum
+      run: go mod tidy
 
     - name: Build
       env:
