@@ -28,6 +28,7 @@ jobs:
 
     - name: Download dependencies
       run: |
+        go mod tidy
         go mod download
         go mod verify
 
