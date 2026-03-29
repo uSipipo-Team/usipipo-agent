@@ -2,7 +2,7 @@
 set -e
 
 # ============================================================================
-# uSipipo Agent Installer v2.0
+# uSipipo Agent Installer v3.0
 # ============================================================================
 # 
 # Usage:
@@ -10,39 +10,55 @@ set -e
 #
 # Options:
 #   --version <version>    Install specific version (default: latest)
-#   --path <path>          Install to custom path (default: /usr/local/bin)
+#   --path <path>          Install to custom path (default: /opt/usipipo-agent)
+#   --service              Install systemd service for auto-start
+#   --no-service           Skip systemd service installation
 #   --verify-checksum      Verify SHA256 checksum before installation
-#   --help                 Show this help message
+#   --interactive, -i      Interactive mode with prompts
+#   --no-color             Disable colored output
+#   --help, -h             Show this help message
 #
 # Examples:
-#   # Install latest version
+#   # Default installation (non-interactive)
 #   curl -fsSL https://github.com/uSipipo-Team/usipipo-agent/releases/latest/download/install.sh | bash
 #
-#   # Install specific version
-#   curl -fsSL .../install.sh | bash -s -- --version v0.1.10
+#   # Interactive mode
+#   curl -fsSL .../install.sh | bash -s -- --interactive
 #
-#   # Install to custom path
-#   curl -fsSL .../install.sh | bash -s -- --path ~/.local/bin
+#   # Install with systemd service
+#   curl -fsSL .../install.sh | bash -s -- --service
 #
-#   # Verify checksum
-#   curl -fsSL .../install.sh | bash -s -- --verify-checksum
+#   # Specific version
+#   curl -fsSL .../install.sh | bash -s -- --version v0.1.11
 #
 # ============================================================================
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-MAGENTA='\033[0;35m'
-CYAN='\033[0;36m'
-NC='\033[0m' # No Color
+# ============================================================================
+# Color Configuration
+# ============================================================================
 
-# Default values
-VERSION="latest"
-INSTALL_PATH="/usr/local/bin"
-VERIFY_CHECKSUM=false
-NEED_SUDO=false
+setup_colors() {
+    # Disable colors if NO_COLOR is set or not a terminal
+    if [ -n "$NO_COLOR" ] || [ ! -t 1 ]; then
+        RED=''
+        GREEN=''
+        YELLOW=''
+        BLUE=''
+        MAGENTA=''
+        CYAN=''
+        NC=''
+        BOLD=''
+    else
+        RED='\033[0;31m'
+        GREEN='\033[0;32m'
+        YELLOW='\033[1;33m'
+        BLUE='\033[0;34m'
+        MAGENTA='\033[0;35m'
+        CYAN='\033[0;36m'
+        NC='\033[0m'
+        BOLD='\033[1m'
+    fi
+}
 
 # ============================================================================
 # Helper Functions
@@ -61,7 +77,7 @@ print_warning() {
 }
 
 print_error() {
-    echo -e "${RED}❌ $1${NC}"
+    echo -e "${RED}❌ $1${NC}" >&2
 }
 
 print_step() {
@@ -70,6 +86,14 @@ print_step() {
 
 print_package() {
     echo -e "${CYAN}📦 $1${NC}"
+}
+
+print_header() {
+    echo ""
+    echo -e "${BOLD}${CYAN}=========================================${NC}"
+    echo -e "${BOLD}${CYAN}  $1${NC}"
+    echo -e "${BOLD}${CYAN}=========================================${NC}"
+    echo ""
 }
 
 show_help() {
@@ -117,22 +141,17 @@ require_command() {
 # ============================================================================
 
 verify_sudo() {
-    print_step "Verifying sudo permissions..."
-    
     if [ "$EUID" -eq 0 ]; then
-        print_info "Running as root"
         NEED_SUDO=false
         return 0
     fi
     
     if sudo -v 2>/dev/null; then
-        print_success "Sudo permissions granted"
         NEED_SUDO=true
         # Keep sudo alive
         while true; do sudo -n true; sleep 60; kill -0 "$$" 2>/dev/null || exit 0; done 2>/dev/null &
         return 0
     else
-        print_warning "Sudo not available, installation may fail"
         NEED_SUDO=false
         return 0
     fi
@@ -312,176 +331,405 @@ install_with_zypper() {
 }
 
 # ============================================================================
+# Interactive Mode
+# ============================================================================
+
+run_interactive() {
+    echo ""
+    print_header "Interactive Installation"
+    
+    # Ask for version
+    read -p "Install version [latest]: " -r
+    if [ -n "$REPLY" ]; then
+        VERSION="$REPLY"
+    fi
+    
+    # Ask for install path
+    read -p "Install path [/opt/usipipo-agent]: " -r
+    if [ -n "$REPLY" ]; then
+        INSTALL_PATH="$REPLY"
+    fi
+    
+    # Ask for systemd service
+    read -p "Install systemd service for auto-start? [Y/n]: " -r
+    if [[ $REPLY =~ ^[Nn]$ ]]; then
+        INSTALL_SERVICE=false
+    else
+        INSTALL_SERVICE=true
+    fi
+    
+    # Ask for checksum verification
+    read -p "Verify SHA256 checksum? [y/N]: " -r
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        VERIFY_CHECKSUM=true
+    fi
+    
+    echo ""
+    print_info "Configuration:"
+    echo "  Version: $VERSION"
+    echo "  Path: $INSTALL_PATH"
+    echo "  Service: $INSTALL_SERVICE"
+    echo "  Verify Checksum: $VERIFY_CHECKSUM"
+    echo ""
+    read -p "Continue with installation? [Y/n]: " -r
+    if [[ $REPLY =~ ^[Nn]$ ]]; then
+        print_info "Installation cancelled"
+        exit 0
+    fi
+    echo ""
+}
+
+# ============================================================================
+# Systemd Service Installation
+# ============================================================================
+
+install_systemd_service() {
+    print_step "Installing systemd service..."
+    
+    # Create service file
+    local SERVICE_FILE="/tmp/usipipo-agent.service"
+    
+    cat > "$SERVICE_FILE" << EOF
+[Unit]
+Description=uSipipo VPN Agent
+After=network.target
+
+[Service]
+Type=simple
+User=$(whoami)
+Group=$(id -gn)
+WorkingDirectory=$INSTALL_PATH
+EnvironmentFile=$INSTALL_PATH/.env
+ExecStart=$INSTALL_PATH/usipipo-agent
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=usipipo-agent
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/log/usipipo-agent
+
+[Install]
+WantedBy=multi-user.target
+EOF
+    
+    # Install service
+    if ! sudo cp "$SERVICE_FILE" /etc/systemd/system/usipipo-agent.service; then
+        print_error "Failed to install systemd service"
+        return 1
+    fi
+    
+    # Create log directory
+    if ! sudo mkdir -p /var/log/usipipo-agent; then
+        print_error "Failed to create log directory"
+        return 1
+    fi
+    
+    if ! sudo chown $(whoami):$(id -gn) /var/log/usipipo-agent; then
+        print_error "Failed to set log directory permissions"
+        return 1
+    fi
+    
+    # Reload and enable
+    if ! sudo systemctl daemon-reload; then
+        print_error "Failed to reload systemd"
+        return 1
+    fi
+    
+    if ! sudo systemctl enable usipipo-agent; then
+        print_error "Failed to enable service"
+        return 1
+    fi
+    
+    # Start service
+    print_info "Starting usipipo-agent service..."
+    if ! sudo systemctl start usipipo-agent; then
+        print_warning "Service failed to start. Check logs with: sudo journalctl -u usipipo-agent"
+        return 1
+    fi
+    
+    # Wait for service to start
+    sleep 2
+    
+    # Check status
+    if sudo systemctl is-active --quiet usipipo-agent; then
+        print_success "Systemd service installed and running"
+        return 0
+    else
+        print_warning "Service installed but not running. Start manually with: sudo systemctl start usipipo-agent"
+        return 1
+    fi
+}
+
+# ============================================================================
 # Parse Command Line Arguments
 # ============================================================================
 
-while [[ $# -gt 0 ]]; do
-    case $1 in
-        --version)
-            VERSION="$2"
-            shift 2
-            ;;
-        --path)
-            INSTALL_PATH="$2"
-            shift 2
-            ;;
-        --verify-checksum)
-            VERIFY_CHECKSUM=true
-            shift
-            ;;
-        --help|-h)
-            show_help
-            ;;
-        *)
-            print_error "Unknown option: $1"
-            show_help
-            ;;
-    esac
-done
+parse_arguments() {
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --version)
+                VERSION="$2"
+                shift 2
+                ;;
+            --path)
+                INSTALL_PATH="$2"
+                shift 2
+                ;;
+            --service)
+                INSTALL_SERVICE=true
+                shift
+                ;;
+            --no-service)
+                INSTALL_SERVICE=false
+                shift
+                ;;
+            --verify-checksum)
+                VERIFY_CHECKSUM=true
+                shift
+                ;;
+            --interactive|-i)
+                INTERACTIVE=true
+                shift
+                ;;
+            --no-color)
+                export NO_COLOR=1
+                shift
+                ;;
+            --help|-h)
+                show_help
+                ;;
+            *)
+                print_error "Unknown option: $1"
+                show_help
+                ;;
+        esac
+    done
+}
 
 # ============================================================================
 # Main Installation Process
 # ============================================================================
 
-echo ""
-print_step "=========================================="
-print_step "  uSipipo Agent Installation"
-print_step "=========================================="
-echo ""
-
-# Verify sudo first
-verify_sudo
-
-# Install dependencies
-install_dependencies
-
-# Detect platform
-OS=$(detect_os)
-ARCH=$(detect_arch)
-
-print_info "Detected platform: ${CYAN}${OS}/${ARCH}${NC}"
-
-# Determine version
-if [ "$VERSION" = "latest" ]; then
-    # Get latest version from GitHub API
-    VERSION=$(curl -s https://api.github.com/repos/uSipipo-Team/usipipo-agent/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
-    if [ -z "$VERSION" ]; then
-        print_error "Failed to fetch latest version from GitHub"
-        exit 1
+main() {
+    # Initialize
+    setup_colors
+    parse_arguments "$@"
+    
+    # Print header
+    print_header "uSipipo Agent Installation"
+    
+    # Interactive mode
+    if [ "$INTERACTIVE" = true ]; then
+        run_interactive
     fi
-    print_info "Latest version: ${CYAN}$VERSION${NC}"
-fi
-
-# Build download URL
-BINARY_NAME="usipipo-agent-${OS}-${ARCH}"
-DOWNLOAD_URL="https://github.com/uSipipo-Team/usipipo-agent/releases/download/${VERSION}/${BINARY_NAME}.zip"
-CHECKSUM_URL="https://github.com/uSipipo-Team/usipipo-agent/releases/download/${VERSION}/SHA256SUMS"
-
-print_info "Downloading from: $DOWNLOAD_URL"
-
-# Create temporary directory
-TMP_DIR=$(mktemp -d)
-trap "rm -rf $TMP_DIR" EXIT
-
-# Download binary
-print_step "Downloading uSipipo Agent ${VERSION}..."
-if ! curl -fsSL "$DOWNLOAD_URL" -o "$TMP_DIR/${BINARY_NAME}.zip"; then
-    print_error "Failed to download binary"
-    print_info "Check if the version exists: https://github.com/uSipipo-Team/usipipo-agent/releases"
-    exit 1
-fi
-
-# Verify checksum if requested
-if [ "$VERIFY_CHECKSUM" = true ]; then
-    print_step "Verifying checksum..."
-    if curl -fsSL "$CHECKSUM_URL" -o "$TMP_DIR/SHA256SUMS"; then
-        cd "$TMP_DIR"
-        if ! sha256sum -c SHA256SUMS --ignore-missing &> /dev/null; then
-            print_error "Checksum verification failed!"
-            print_error "The downloaded file may be corrupted or tampered with"
+    
+    # Verify sudo
+    print_step "Verifying sudo permissions..."
+    verify_sudo
+    if [ "$NEED_SUDO" = true ]; then
+        print_success "Sudo permissions granted"
+    else
+        print_info "Running without sudo (some features may be limited)"
+    fi
+    
+    # Install dependencies
+    install_dependencies
+    
+    # Detect platform
+    OS=$(detect_os)
+    ARCH=$(detect_arch)
+    print_info "Detected platform: ${CYAN}${OS}/${ARCH}${NC}"
+    
+    # Determine version
+    if [ "$VERSION" = "latest" ]; then
+        VERSION=$(curl -s https://api.github.com/repos/uSipipo-Team/usipipo-agent/releases/latest | grep '"tag_name":' | sed -E 's/.*"([^"]+)".*/\1/')
+        if [ -z "$VERSION" ]; then
+            print_error "Failed to fetch latest version from GitHub"
             exit 1
         fi
-        print_success "Checksum verified successfully"
-    else
-        print_warning "Failed to download checksum file, skipping verification"
+        print_info "Latest version: ${CYAN}$VERSION${NC}"
     fi
-fi
-
-# Extract binary
-print_step "Extracting binary..."
-unzip -q "$TMP_DIR/${BINARY_NAME}.zip" -d "$TMP_DIR"
-
-# Prepare installation
-print_step "Installing to ${INSTALL_PATH}..."
-
-# Check if install path exists
-if [ ! -d "$INSTALL_PATH" ]; then
-    print_info "Creating installation directory: $INSTALL_PATH"
+    
+    # Build download URL
+    BINARY_NAME="usipipo-agent-${OS}-${ARCH}"
+    DOWNLOAD_URL="https://github.com/uSipipo-Team/usipipo-agent/releases/download/${VERSION}/${BINARY_NAME}.zip"
+    CHECKSUM_URL="https://github.com/uSipipo-Team/usipipo-agent/releases/download/${VERSION}/SHA256SUMS"
+    
+    print_info "Downloading from: $DOWNLOAD_URL"
+    
+    # Create temporary directory
+    TMP_DIR=$(mktemp -d)
+    trap "rm -rf $TMP_DIR" EXIT
+    
+    # Download binary
+    print_step "Downloading uSipipo Agent ${VERSION}..."
+    if ! curl -fsSL "$DOWNLOAD_URL" -o "$TMP_DIR/${BINARY_NAME}.zip"; then
+        print_error "Failed to download binary"
+        print_info "Check if the version exists: https://github.com/uSipipo-Team/usipipo-agent/releases"
+        exit 1
+    fi
+    
+    # Verify checksum if requested
+    if [ "$VERIFY_CHECKSUM" = true ]; then
+        print_step "Verifying checksum..."
+        if curl -fsSL "$CHECKSUM_URL" -o "$TMP_DIR/SHA256SUMS"; then
+            cd "$TMP_DIR"
+            if ! sha256sum -c SHA256SUMS --ignore-missing &> /dev/null; then
+                print_error "Checksum verification failed!"
+                print_error "The downloaded file may be corrupted or tampered with"
+                exit 1
+            fi
+            print_success "Checksum verified successfully"
+        else
+            print_warning "Failed to download checksum file, skipping verification"
+        fi
+    fi
+    
+    # Extract binary
+    print_step "Extracting binary..."
+    if ! unzip -q "$TMP_DIR/${BINARY_NAME}.zip" -d "$TMP_DIR"; then
+        print_error "Failed to extract binary"
+        exit 1
+    fi
+    
+    # Prepare installation directory
+    print_step "Installing to ${INSTALL_PATH}..."
+    
+    # Create directory
     if [ "$NEED_SUDO" = true ]; then
-        sudo mkdir -p "$INSTALL_PATH"
+        if ! sudo mkdir -p "$INSTALL_PATH"; then
+            print_error "Failed to create installation directory"
+            exit 1
+        fi
+        if ! sudo chown $(whoami):$(id -gn) "$INSTALL_PATH"; then
+            print_error "Failed to set directory ownership"
+            exit 1
+        fi
     else
-        mkdir -p "$INSTALL_PATH"
+        if ! mkdir -p "$INSTALL_PATH"; then
+            print_error "Failed to create installation directory"
+            exit 1
+        fi
     fi
-fi
-
-# Install binary
-if [ "$NEED_SUDO" = true ]; then
-    sudo mv "$TMP_DIR/${BINARY_NAME}" "$INSTALL_PATH/usipipo-agent"
-    sudo chmod +x "$INSTALL_PATH/usipipo-agent"
-else
-    mv "$TMP_DIR/${BINARY_NAME}" "$INSTALL_PATH/usipipo-agent"
-    chmod +x "$INSTALL_PATH/usipipo-agent"
-fi
-
-# Verify installation
-print_step "Verifying installation..."
-if ! command -v usipipo-agent &> /dev/null; then
-    print_warning "Installation directory is not in PATH"
-    print_info "Add $INSTALL_PATH to your PATH:"
-    echo "  ${CYAN}export PATH=\"$INSTALL_PATH:\$PATH\"${NC}"
     
-    # Add to shell profile if it doesn't exist
-    PROFILE_FILE="$HOME/.bashrc"
-    [ -f "$HOME/.zshrc" ] && PROFILE_FILE="$HOME/.zshrc"
-    
-    if ! grep -q "usipipo-agent" "$PROFILE_FILE" 2>/dev/null; then
-        echo "" >> "$PROFILE_FILE"
-        echo "# uSipipo Agent" >> "$PROFILE_FILE"
-        echo "export PATH=\"$INSTALL_PATH:\$PATH\"" >> "$PROFILE_FILE"
-        print_success "Added to $PROFILE_FILE"
-        print_info "Run 'source $PROFILE_FILE' or restart your terminal"
+    # Install binary
+    if ! mv "$TMP_DIR/${BINARY_NAME}" "$INSTALL_PATH/usipipo-agent"; then
+        print_error "Failed to install binary"
+        exit 1
     fi
-fi
+    
+    if ! chmod +x "$INSTALL_PATH/usipipo-agent"; then
+        print_error "Failed to make binary executable"
+        exit 1
+    fi
+    
+    # Create .env from template if not exists
+    if [ ! -f "$INSTALL_PATH/.env" ]; then
+        print_step "Creating configuration file..."
+        
+        # Generate unique server ID
+        local SERVER_ID="$(hostname)-$(date +%s)"
+        local TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+        
+        # Create .env from template
+        cat > "$INSTALL_PATH/.env" << EOF
+# uSipipo Agent Configuration
+# Generated: $TIMESTAMP
 
-# Show version
-if [ -x "$INSTALL_PATH/usipipo-agent" ]; then
+# Agent API Key (for backend communication)
+AGENT_API_KEY=your-api-key-here
+
+# Backend URL (HTTP or HTTPS)
+BACKEND_URL=http://localhost:8001
+
+# Server ID (unique identifier for this VPS)
+SERVER_ID=$SERVER_ID
+
+# Outline Configuration
+OUTLINE_API_URL=http://localhost:8081
+
+# WireGuard Configuration
+WG_INTERFACE=wg0
+WG_SERVER_IP=localhost
+WG_SERVER_PORT=51820
+
+# Advanced Settings
+AGENT_PORT=8080
+METRICS_INTERVAL=60
+LOG_LEVEL=INFO
+EOF
+        chmod 600 "$INSTALL_PATH/.env"
+        print_success "Configuration file created: $INSTALL_PATH/.env"
+        print_warning "Please edit $INSTALL_PATH/.env with your settings"
+    fi
+    
+    # Verify installation
+    print_step "Verifying installation..."
+    if [ ! -x "$INSTALL_PATH/usipipo-agent" ]; then
+        print_error "Installation failed - binary not executable"
+        exit 1
+    fi
+    
+    # Show version
     VERSION_INFO=$("$INSTALL_PATH/usipipo-agent" --version 2>&1 || echo "installed")
     print_success "=========================================="
     print_success "  uSipipo Agent Installed Successfully!"
     print_success "=========================================="
     print_info "Version: $VERSION_INFO"
     print_info "Location: $INSTALL_PATH/usipipo-agent"
-else
-    print_error "Installation failed - binary not executable"
-    exit 1
-fi
+    
+    # Install systemd service if requested
+    if [ "$INSTALL_SERVICE" = true ]; then
+        echo ""
+        if install_systemd_service; then
+            print_success "Systemd service configured"
+        else
+            print_warning "Systemd service installation failed"
+        fi
+    fi
+    
+    # Show next steps
+    echo ""
+    print_info "${CYAN}Next steps:${NC}"
+    echo ""
+    echo "  1. Configure environment variables:"
+    echo "     ${YELLOW}nano $INSTALL_PATH/.env${NC}"
+    echo ""
+    echo "  2. Edit the following settings:"
+    echo "     ${YELLOW}AGENT_API_KEY${NC} - Your API key from backend"
+    echo "     ${YELLOW}BACKEND_URL${NC} - Backend API URL"
+    echo "     ${YELLOW}SERVER_ID${NC} - Unique server identifier"
+    echo ""
+    echo "  3. Run the agent:"
+    if [ "$INSTALL_SERVICE" = true ]; then
+        echo "     ${YELLOW}sudo systemctl start usipipo-agent${NC}"
+        echo "     ${YELLOW}sudo systemctl status usipipo-agent${NC}"
+    else
+        echo "     ${YELLOW}cd $INSTALL_PATH${NC}"
+        echo "     ${YELLOW}source .env && usipipo-agent${NC}"
+    fi
+    echo ""
+    echo "  4. For advanced configuration, see:"
+    echo "     ${CYAN}https://github.com/uSipipo-Team/usipipo-agent/blob/main/DEPLOYMENT.md${NC}"
+    echo ""
+    print_success "Installation complete! 🎉"
+    echo ""
+    
+    exit 0
+}
 
-# Show next steps
-echo ""
-print_info "${CYAN}Next steps:${NC}"
-echo ""
-echo "  1. Configure environment variables:"
-echo "     ${YELLOW}export AGENT_API_KEY=\"your-api-key\"${NC}"
-echo "     ${YELLOW}export BACKEND_URL=\"https://api.usipipo.duckdns.org\"${NC}"
-echo "     ${YELLOW}export SERVER_ID=\"your-server-id\"${NC}"
-echo ""
-echo "  2. Run the agent:"
-echo "     ${YELLOW}usipipo-agent${NC}"
-echo ""
-echo "  3. For systemd service, see:"
-echo "     ${CYAN}https://github.com/uSipipo-Team/usipipo-agent/blob/main/DEPLOYMENT.md${NC}"
-echo ""
-print_success "Installation complete! 🎉"
-echo ""
+# Default values
+VERSION="latest"
+INSTALL_PATH="/opt/usipipo-agent"
+INSTALL_SERVICE=false
+VERIFY_CHECKSUM=false
+INTERACTIVE=false
+NEED_SUDO=false
 
-exit 0
+# Run main
+main "$@"
