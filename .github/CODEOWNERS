@@ -1,0 +1,18 @@
+# Code Owners for uSipipo Agent
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owners for everything in the repo
+* @mowgliph
+
+# Go source code requires review
+*.go @mowgliph
+
+# Workflow changes require extra care
+.github/workflows/*.yml @mowgliph
+
+# Installation script is critical infrastructure
+scripts/install.sh @mowgliph
+
+# Documentation changes
+docs/ @mowgliph
+*.md @mowgliph
