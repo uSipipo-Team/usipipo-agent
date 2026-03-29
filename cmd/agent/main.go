@@ -41,15 +41,21 @@ func main() {
 	outlineClient := vpn.NewOutlineClient(cfg.OutlineAPIURL)
 	api.SetOutlineClient(outlineClient)
 
-	// Initialize WireGuard client
-	wireguardClient := vpn.NewWireGuardClient(
+	// Initialize WireGuard client using wgctrl
+	wireguardClient, err := vpn.NewWireGuardClient(
 		cfg.WireGuardInterface,
 		"/etc/wireguard/wg0.conf",
 		cfg.ServerID, // Will be replaced with actual server IP
 		51820,        // Default WireGuard port
 		"1.1.1.1",    // Cloudflare DNS
 	)
-	api.SetWireGuardClient(wireguardClient)
+	if err != nil {
+		log.Printf("Warning: WireGuard client initialization failed: %v", err)
+		log.Printf("WireGuard features will be limited")
+	} else {
+		api.SetWireGuardClient(wireguardClient)
+		log.Printf("WireGuard client initialized successfully")
+	}
 
 	// Initialize and start metrics reporter
 	metricsReporter := reporter.NewReporter(cfg.BackendURL, cfg.ServerID, cfg.APIKey, metricsCollector)

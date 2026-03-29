@@ -3,11 +3,14 @@ package vpn
 import (
 	"context"
 	"fmt"
+	"net"
 	"os"
-	"os/exec"
 	"regexp"
 	"strings"
 	"time"
+
+	"golang.zx2c4.com/wireguard/wgctrl"
+	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 )
 
 // WireGuardClient handles communication with WireGuard interface
@@ -17,6 +20,7 @@ type WireGuardClient struct {
 	serverIP      string
 	serverPort    int
 	clientDNS     string
+	client        *wgctrl.Client
 }
 
 // WireGuardPeer represents a WireGuard peer
@@ -27,33 +31,43 @@ type WireGuardPeer struct {
 	Config    string `json:"config"`
 }
 
-// NewWireGuardClient creates a new WireGuard client
-func NewWireGuardClient(interfaceName, configPath, serverIP string, serverPort int, clientDNS string) *WireGuardClient {
+// NewWireGuardClient creates a new WireGuard client using wgctrl
+func NewWireGuardClient(interfaceName, configPath, serverIP string, serverPort int, clientDNS string) (*WireGuardClient, error) {
+	client, err := wgctrl.New()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create wgctrl client: %w", err)
+	}
+
 	return &WireGuardClient{
 		interfaceName: interfaceName,
 		configPath:    configPath,
 		serverIP:      serverIP,
 		serverPort:    serverPort,
 		clientDNS:     clientDNS,
-	}
+		client:        client,
+	}, nil
 }
 
-// CreatePeer creates a new WireGuard peer
+// Close closes the wgctrl client
+func (c *WireGuardClient) Close() error {
+	if c.client != nil {
+		return c.client.Close()
+	}
+	return nil
+}
+
+// CreatePeer creates a new WireGuard peer using wgctrl
 func (c *WireGuardClient) CreatePeer(ctx context.Context, name string) (*WireGuardPeer, error) {
-	// Generate private key
-	privKey, err := c.runCommand("wg", "genkey")
+	// Generate private key using wgctrl
+	privateKey, err := wgtypes.GeneratePrivateKey()
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate private key: %w", err)
 	}
 
-	// Generate public key
-	pubKey, err := c.runCommandWithInput("wg", "pubkey", privKey)
-	if err != nil {
-		return nil, fmt.Errorf("failed to generate public key: %w", err)
-	}
+	publicKey := privateKey.PublicKey()
 
 	// Generate pre-shared key
-	psk, err := c.runCommand("wg", "genpsk")
+	psk, err := wgtypes.GenerateKey()
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate preshared key: %w", err)
 	}
@@ -64,30 +78,47 @@ func (c *WireGuardClient) CreatePeer(ctx context.Context, name string) (*WireGua
 		return nil, err
 	}
 
-	// Add peer to interface
-	_, err = c.runCommand("wg", "set", c.interfaceName, "peer", pubKey, "allowed-ips", ip+"/32", "preshared-key", psk)
+	// Parse IP for AllowedIPs
+	_, ipNet, err := net.ParseCIDR(ip + "/32")
 	if err != nil {
-		return nil, fmt.Errorf("failed to add peer: %w", err)
+		return nil, fmt.Errorf("failed to parse IP: %w", err)
+	}
+
+	// Configure peer using wgctrl
+	config := wgtypes.Config{
+		Peers: []wgtypes.PeerConfig{
+			{
+				PublicKey:         publicKey,
+				PresharedKey:      &psk,
+				AllowedIPs:        []net.IPNet{*ipNet},
+				ReplaceAllowedIPs: false,
+			},
+		},
+	}
+
+	err = c.client.ConfigureDevice(c.interfaceName, config)
+	if err != nil {
+		return nil, fmt.Errorf("failed to configure device: %w", err)
 	}
 
 	// Get server public key
-	serverPubKey, err := c.runCommand("wg", "show", c.interfaceName, "public-key")
+	device, err := c.client.Device(c.interfaceName)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get server public key: %w", err)
+		return nil, fmt.Errorf("failed to get device info: %w", err)
 	}
 
 	// Generate client config
-	config := c.generateClientConfig(privKey, ip, serverPubKey, psk)
+	configStr := c.generateClientConfig(privateKey.String(), ip, device.PublicKey.String(), psk.String())
 
 	return &WireGuardPeer{
-		PublicKey: pubKey,
+		PublicKey: publicKey.String(),
 		Name:      name,
 		IPAddress: ip,
-		Config:    config,
+		Config:    configStr,
 	}, nil
 }
 
-// DeletePeer deletes a WireGuard peer by name
+// DeletePeer removes a WireGuard peer using wgctrl
 func (c *WireGuardClient) DeletePeer(ctx context.Context, name string) error {
 	// Find peer public key from config
 	pubKey, err := c.findPeerPublicKey(name)
@@ -95,37 +126,42 @@ func (c *WireGuardClient) DeletePeer(ctx context.Context, name string) error {
 		return err
 	}
 
-	// Remove peer
-	_, err = c.runCommand("wg", "set", c.interfaceName, "peer", pubKey, "remove")
+	// Parse public key
+	key, err := wgtypes.ParseKey(pubKey)
 	if err != nil {
-		return fmt.Errorf("failed to remove peer: %w", err)
+		return fmt.Errorf("failed to parse public key: %w", err)
 	}
 
-	return nil
+	// Remove peer using wgctrl
+	config := wgtypes.Config{
+		Peers: []wgtypes.PeerConfig{
+			{
+				PublicKey: key,
+				Remove:    true,
+			},
+		},
+	}
+
+	return c.client.ConfigureDevice(c.interfaceName, config)
 }
 
 // GetPeerUsage returns the data transfer for a specific peer
 func (c *WireGuardClient) GetPeerUsage(ctx context.Context, name string) (uint64, error) {
+	device, err := c.client.Device(c.interfaceName)
+	if err != nil {
+		return 0, err
+	}
+
+	// Find peer by name in config file
 	pubKey, err := c.findPeerPublicKey(name)
 	if err != nil {
 		return 0, err
 	}
 
-	output, err := c.runCommand("wg", "show", c.interfaceName, "dump")
-	if err != nil {
-		return 0, err
-	}
-
-	// Parse output to find transfer for this peer
-	lines := strings.Split(output, "\n")
-	for _, line := range lines[1:] { // Skip header
-		parts := strings.Split(line, "\t")
-		if len(parts) >= 7 && parts[0] == pubKey {
-			// parts[5] = rx, parts[6] = tx
-			var rx, tx uint64
-			fmt.Sscanf(parts[5], "%d", &rx)
-			fmt.Sscanf(parts[6], "%d", &tx)
-			return rx + tx, nil
+	// Find peer in device and get bytes
+	for _, peer := range device.Peers {
+		if peer.PublicKey.String() == pubKey {
+			return peer.ReceiveBytes + peer.TransmitBytes, nil
 		}
 	}
 
@@ -134,98 +170,30 @@ func (c *WireGuardClient) GetPeerUsage(ctx context.Context, name string) (uint64
 
 // GetActivePeersCount returns the number of active peers
 func (c *WireGuardClient) GetActivePeersCount(ctx context.Context) (int, error) {
-	output, err := c.runCommand("wg", "show", c.interfaceName, "dump")
+	device, err := c.client.Device(c.interfaceName)
 	if err != nil {
 		return 0, err
 	}
 
-	lines := strings.Split(output, "\n")
-	// Count non-header lines
-	count := 0
-	for _, line := range lines[1:] {
-		if strings.TrimSpace(line) != "" {
-			count++
-		}
-	}
-
-	return count, nil
+	return len(device.Peers), nil
 }
 
 // GetTotalBytesTransferred returns total bytes transferred across all peers
 func (c *WireGuardClient) GetTotalBytesTransferred(ctx context.Context) (uint64, error) {
-	output, err := c.runCommand("wg", "show", c.interfaceName, "dump")
+	device, err := c.client.Device(c.interfaceName)
 	if err != nil {
 		return 0, err
 	}
 
-	lines := strings.Split(output, "\n")
 	var total uint64
-	for _, line := range lines[1:] {
-		parts := strings.Split(line, "\t")
-		if len(parts) >= 7 {
-			var rx, tx uint64
-			fmt.Sscanf(parts[5], "%d", &rx)
-			fmt.Sscanf(parts[6], "%d", &tx)
-			total += rx + tx
-		}
+	for _, peer := range device.Peers {
+		total += peer.ReceiveBytes + peer.TransmitBytes
 	}
 
 	return total, nil
 }
 
 // Helper methods
-
-func (c *WireGuardClient) runCommand(name string, args ...string) (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	var cmd *exec.Cmd
-
-	// Prepend sudo for wg commands to run with elevated privileges
-	if name == "wg" {
-		sudoArgs := append([]string{"wg"}, args...)
-		cmd = exec.CommandContext(ctx, "sudo", sudoArgs...)
-	} else {
-		cmd = exec.CommandContext(ctx, name, args...)
-	}
-
-	output, err := cmd.Output()
-	if err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			return "", fmt.Errorf("command failed: %w, stderr: %s", err, string(exitErr.Stderr))
-		}
-		return "", err
-	}
-
-	return strings.TrimSpace(string(output)), nil
-}
-
-func (c *WireGuardClient) runCommandWithInput(name, input string, args ...string) (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	var cmd *exec.Cmd
-
-	// Prepend sudo for wg commands and use pipe for stdin
-	if name == "wg" {
-		// Use printf to safely handle special characters in keys
-		bashCmd := fmt.Sprintf("printf '%%s' '%s' | wg %s", input, strings.Join(args, " "))
-		cmd = exec.CommandContext(ctx, "sh", "-c", bashCmd)
-	} else {
-		cmd = exec.CommandContext(ctx, name, args...)
-		cmd.Stdin = strings.NewReader(input)
-	}
-
-	output, err := cmd.Output()
-	if err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			return "", fmt.Errorf("command failed: %w, stderr: %s", err, string(exitErr.Stderr))
-		}
-		return "", err
-	}
-
-	return strings.TrimSpace(string(output)), nil
-}
 
 func (c *WireGuardClient) getNextAvailableIP() (string, error) {
 	// Read config file to find used IPs
