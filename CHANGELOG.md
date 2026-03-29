@@ -20,6 +20,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.18] - 2026-03-29
+
+### ✨ Features
+
+**Security:**
+- ✅ Add rate limiting for production security
+- ✅ Configure rate limits per endpoint
+- ✅ Add rate limit headers (X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset)
+
+### 🐛 Bug Fixes
+
+**Dependencies:**
+- ✅ Correct wgctrl pseudo-version timestamp
+
+---
+
 ## [0.1.12] - 2026-03-29
 
 ### 🐛 Bug Fixes
