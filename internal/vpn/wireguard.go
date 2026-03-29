@@ -208,8 +208,8 @@ func (c *WireGuardClient) runCommandWithInput(name, input string, args ...string
 
 	// Prepend sudo for wg commands and use pipe for stdin
 	if name == "wg" {
-		// Use sh -c with explicit stdin redirection
-		bashCmd := fmt.Sprintf("echo '%s' | wg %s", input, strings.Join(args, " "))
+		// Use printf to safely handle special characters in keys
+		bashCmd := fmt.Sprintf("printf '%%s' '%s' | wg %s", input, strings.Join(args, " "))
 		cmd = exec.CommandContext(ctx, "sh", "-c", bashCmd)
 	} else {
 		cmd = exec.CommandContext(ctx, name, args...)
