@@ -65,7 +65,7 @@ func (c *WireGuardClient) CreatePeer(ctx context.Context, name string) (*WireGua
 	}
 
 	// Add peer to interface
-	err = c.runCommand("wg", "set", c.interfaceName, "peer", pubKey, "allowed-ips", ip+"/32", "preshared-key", psk)
+	_, err = c.runCommand("wg", "set", c.interfaceName, "peer", pubKey, "allowed-ips", ip+"/32", "preshared-key", psk)
 	if err != nil {
 		return nil, fmt.Errorf("failed to add peer: %w", err)
 	}
@@ -96,7 +96,7 @@ func (c *WireGuardClient) DeletePeer(ctx context.Context, name string) error {
 	}
 
 	// Remove peer
-	err = c.runCommand("wg", "set", c.interfaceName, "peer", pubKey, "remove")
+	_, err = c.runCommand("wg", "set", c.interfaceName, "peer", pubKey, "remove")
 	if err != nil {
 		return fmt.Errorf("failed to remove peer: %w", err)
 	}
