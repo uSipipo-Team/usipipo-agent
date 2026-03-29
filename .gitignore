@@ -4,8 +4,9 @@
 *.dll
 *.so
 *.dylib
-agent
+/agent
 usipipo-agent-*
+cmd/agent/agent
 
 # Test binary
 *.test
