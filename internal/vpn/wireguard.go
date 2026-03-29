@@ -7,7 +7,6 @@ import (
 	"os"
 	"regexp"
 	"strings"
-	"time"
 
 	"golang.zx2c4.com/wireguard/wgctrl"
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
@@ -161,7 +160,7 @@ func (c *WireGuardClient) GetPeerUsage(ctx context.Context, name string) (uint64
 	// Find peer in device and get bytes
 	for _, peer := range device.Peers {
 		if peer.PublicKey.String() == pubKey {
-			return peer.ReceiveBytes + peer.TransmitBytes, nil
+			return uint64(peer.ReceiveBytes + peer.TransmitBytes), nil
 		}
 	}
 
@@ -187,7 +186,7 @@ func (c *WireGuardClient) GetTotalBytesTransferred(ctx context.Context) (uint64,
 
 	var total uint64
 	for _, peer := range device.Peers {
-		total += peer.ReceiveBytes + peer.TransmitBytes
+		total += uint64(peer.ReceiveBytes + peer.TransmitBytes)
 	}
 
 	return total, nil
