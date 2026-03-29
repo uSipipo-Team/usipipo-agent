@@ -179,9 +179,21 @@ func (c *WireGuardClient) runCommand(name string, args ...string) (string, error
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, name, args...)
+	var cmd *exec.Cmd
+
+	// Prepend sudo for wg commands to run with elevated privileges
+	if name == "wg" {
+		sudoArgs := append([]string{"wg"}, args...)
+		cmd = exec.CommandContext(ctx, "sudo", sudoArgs...)
+	} else {
+		cmd = exec.CommandContext(ctx, name, args...)
+	}
+
 	output, err := cmd.Output()
 	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			return "", fmt.Errorf("command failed: %w, stderr: %s", err, string(exitErr.Stderr))
+		}
 		return "", err
 	}
 
@@ -192,10 +204,22 @@ func (c *WireGuardClient) runCommandWithInput(name, input string, args ...string
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, name, args...)
+	var cmd *exec.Cmd
+
+	// Prepend sudo for wg commands
+	if name == "wg" {
+		sudoArgs := append([]string{"wg"}, args...)
+		cmd = exec.CommandContext(ctx, "sudo", sudoArgs...)
+	} else {
+		cmd = exec.CommandContext(ctx, name, args...)
+	}
+
 	cmd.Stdin = strings.NewReader(input)
 	output, err := cmd.Output()
 	if err != nil {
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			return "", fmt.Errorf("command failed: %w, stderr: %s", err, string(exitErr.Stderr))
+		}
 		return "", err
 	}
 
