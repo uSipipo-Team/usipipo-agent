@@ -20,6 +20,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.19] - 2026-03-29
+
+### 🐛 Bug Fixes
+
+**Build Fixes:**
+- ✅ Remove unused `github.com/yuehang/log` dependency causing CI cascade failure
+- ✅ Remove unused `time` import in wireguard.go
+- ✅ Fix int64/uint64 type conversion for wgctrl peer bytes (ReceiveBytes, TransmitBytes)
+
+**CI/CD:**
+- ✅ Fix dependency download failures in GitHub Actions
+- ✅ Add explicit type conversions for wgctrl API compatibility
+
+---
+
 ## [0.1.18] - 2026-03-29
 
 ### ✨ Features
