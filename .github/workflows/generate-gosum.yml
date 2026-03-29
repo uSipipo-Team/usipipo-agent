@@ -1,7 +1,10 @@
 name: Generate go.sum
 
 on:
-  workflow_dispatch:  # Manual trigger only
+  workflow_dispatch:  # Manual trigger
+  push:
+    paths:
+      - '.github/workflows/generate-gosum.yml'  # Trigger on self-change
 
 jobs:
   generate:
