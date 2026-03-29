@@ -2,6 +2,7 @@ package vpn
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/go-resty/resty/v2"
@@ -52,7 +53,7 @@ func (c *OutlineClient) CreateKey(ctx context.Context, name string) (*OutlineKey
 		Method    string `json:"method"`
 	}
 
-	if err := resp.JSONInto(&result); err != nil {
+	if err := json.Unmarshal(resp.Body(), &result); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}
 
@@ -108,7 +109,7 @@ func (c *OutlineClient) GetKeyUsage(ctx context.Context, keyID string) (uint64, 
 		BytesTransferredByUserId map[string]uint64 `json:"bytesTransferredByUserId"`
 	}
 
-	if err := resp.JSONInto(&result); err != nil {
+	if err := json.Unmarshal(resp.Body(), &result); err != nil {
 		return 0, fmt.Errorf("failed to parse response: %w", err)
 	}
 
@@ -129,7 +130,7 @@ func (c *OutlineClient) GetActiveKeysCount(ctx context.Context) (int, error) {
 		AccessKeys []interface{} `json:"accessKeys"`
 	}
 
-	if err := resp.JSONInto(&result); err != nil {
+	if err := json.Unmarshal(resp.Body(), &result); err != nil {
 		return 0, fmt.Errorf("failed to parse response: %w", err)
 	}
 
@@ -150,7 +151,7 @@ func (c *OutlineClient) GetTotalBytesTransferred(ctx context.Context) (uint64, e
 		BytesTransferredByUserId map[string]uint64 `json:"bytesTransferredByUserId"`
 	}
 
-	if err := resp.JSONInto(&result); err != nil {
+	if err := json.Unmarshal(resp.Body(), &result); err != nil {
 		return 0, fmt.Errorf("failed to parse response: %w", err)
 	}
 
