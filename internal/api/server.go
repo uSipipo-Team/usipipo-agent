@@ -142,11 +142,13 @@ func NewServer(apiKey, outlineAPIURL string, rateConfig RateLimiterConfig) *Serv
 		// Outline VPN management routes
 		protected.POST("/outline/keys", CreateOutlineKeyHandler)
 		protected.DELETE("/outline/keys/:id", DeleteOutlineKeyHandler)
+		protected.POST("/outline/keys/:id/regenerate", RegenerateOutlineKeyHandler)
 
 		// WireGuard VPN management routes
 		protected.POST("/wireguard/peers", CreateWireGuardPeerHandler)
 		protected.DELETE("/wireguard/peers/:name", DeleteWireGuardPeerHandler)
 		protected.GET("/wireguard/peers/:name/usage", GetWireGuardPeerUsageHandler)
+		protected.POST("/wireguard/peers/:name/regenerate", RegenerateWireGuardPeerHandler)
 	}
 
 	return &Server{

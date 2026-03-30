@@ -123,6 +123,59 @@ func DeleteOutlineKeyHandler(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
+// RegenerateOutlineKeyHandler regenerates an Outline key
+func RegenerateOutlineKeyHandler(c *gin.Context) {
+	if outlineClient == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Outline client not initialized",
+		})
+		return
+	}
+
+	keyID := c.Param("id")
+
+	// Get existing key info first
+	device, err := outlineClient.GetServerInfo(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Find the key to get its name
+	var keyName string
+	for _, key := range device.Keys {
+		if key.ID == keyID {
+			keyName = key.Name
+			break
+		}
+	}
+
+	if keyName == "" {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Key not found"})
+		return
+	}
+
+	// Delete old key
+	err = outlineClient.DeleteKey(c.Request.Context(), keyID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Create new key with same name
+	newKey, err := outlineClient.CreateKey(c.Request.Context(), keyName)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, CreateKeyResponse{
+		ID:        newKey.ID,
+		Name:      newKey.Name,
+		AccessURL: newKey.AccessURL,
+	})
+}
+
 // CreateWireGuardPeerHandler creates a new WireGuard peer
 func CreateWireGuardPeerHandler(c *gin.Context) {
 	if wireguardClient == nil {
@@ -203,5 +256,42 @@ func GetWireGuardPeerUsageHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"name":         name,
 		"bytes_used":   bytesUsed,
+	})
+}
+
+// RegenerateWireGuardPeerHandler regenerates a WireGuard peer configuration
+func RegenerateWireGuardPeerHandler(c *gin.Context) {
+	if wireguardClient == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "WireGuard client not initialized",
+		})
+		return
+	}
+
+	name := c.Param("name")
+
+	// Delete existing peer
+	err := wireguardClient.DeletePeer(c.Request.Context(), name)
+	if err != nil {
+		// Ignore "not found" errors - we're going to recreate anyway
+		if !strings.Contains(err.Error(), "not found") &&
+		   !strings.Contains(err.Error(), "no such process") {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+	}
+
+	// Create new peer with same name
+	peer, err := wireguardClient.CreatePeer(c.Request.Context(), name)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"public_key":  peer.PublicKey,
+		"name":        peer.Name,
+		"ip_address":  peer.IPAddress,
+		"config":      peer.Config,
 	})
 }
