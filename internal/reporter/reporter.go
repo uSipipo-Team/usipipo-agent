@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/go-resty/resty/v2"
-	"github.com/uSipipo-Team/usipipo-agent/internal/config"
 	"github.com/uSipipo-Team/usipipo-agent/internal/metrics"
 	"github.com/uSipipo-Team/usipipo-agent/internal/registrar"
 )
@@ -71,7 +70,7 @@ func (r *Reporter) sendMetrics() {
 	if r.serverID == "" || !registrar.IsValidUUID(r.serverID) {
 		log.Println("Server ID not set or invalid, attempting registration...")
 
-		reg := registrar.NewRegistrar(r.backendURL, r.apiKey, r.serverID)
+		reg := registrar.NewRegistrarFromValues(r.backendURL, r.apiKey, r.serverID)
 		serverID, err := reg.RegisterOrGetServerID()
 		if err != nil {
 			log.Printf("Failed to register: %v", err)
