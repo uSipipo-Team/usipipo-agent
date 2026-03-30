@@ -44,12 +44,23 @@ type RegistrationRequest struct {
 	AgentAPIKey       string `json:"agent_api_key"`
 }
 
-// NewRegistrar creates a new registrar instance
+// NewRegistrar creates a new registrar instance from config
 func NewRegistrar(cfg *config.Config) *Registrar {
 	return &Registrar{
 		backendURL: cfg.BackendURL,
 		apiKey:     cfg.APIKey,
 		serverID:   cfg.ServerID,
+		client:     resty.New(),
+	}
+}
+
+// NewRegistrarFromValues creates a new registrar instance from individual values
+// This is a convenience function for callers that don't have a Config object
+func NewRegistrarFromValues(backendURL, apiKey, serverID string) *Registrar {
+	return &Registrar{
+		backendURL: backendURL,
+		apiKey:     apiKey,
+		serverID:   serverID,
 		client:     resty.New(),
 	}
 }
