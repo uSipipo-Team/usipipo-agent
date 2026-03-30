@@ -2,6 +2,7 @@ package vpn
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 
@@ -24,10 +25,17 @@ type OutlineKey struct {
 }
 
 // NewOutlineClient creates a new Outline API client
-func NewOutlineClient(apiURL string) *OutlineClient {
+func NewOutlineClient(apiURL string, insecureSkipVerify bool) *OutlineClient {
+	client := resty.New()
+	
+	// Configure TLS for self-signed certificates
+	if insecureSkipVerify {
+		client.SetTLSClientConfig(&tls.Config{InsecureSkipVerify: true})
+	}
+	
 	return &OutlineClient{
 		apiURL: apiURL,
-		client: resty.New(),
+		client: client,
 	}
 }
 

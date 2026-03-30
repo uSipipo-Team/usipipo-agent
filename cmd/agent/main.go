@@ -40,7 +40,7 @@ func main() {
 	api.SetMetricsCollector(metricsCollector)
 
 	// Initialize Outline client
-	outlineClient := vpn.NewOutlineClient(cfg.OutlineAPIURL)
+	outlineClient := vpn.NewOutlineClient(cfg.OutlineAPIURL, !cfg.OutlineVerifySSL)
 	api.SetOutlineClient(outlineClient)
 
 	// Initialize WireGuard client using wgctrl
