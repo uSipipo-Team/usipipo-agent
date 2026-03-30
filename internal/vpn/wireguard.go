@@ -123,17 +123,8 @@ func (c *WireGuardClient) DeletePeer(ctx context.Context, name string) error {
 	// Find peer public key from config
 	pubKey, err := c.findPeerPublicKey(name)
 	if err != nil {
-		// Peer not found in config file - check if it exists in the device
-		// If it's not in the device either, deletion is already complete (idempotent)
+		// Peer not found in config file - assume already deleted (idempotent)
 		if strings.Contains(err.Error(), "peer not found") {
-			// Try to find peer by scanning active devices
-			device, deviceErr := c.client.Device(c.interfaceName)
-			if deviceErr != nil {
-				// Can't check device, but assume peer is already removed
-				return nil
-			}
-			
-			// Peer not in config and not in device - already deleted
 			return nil
 		}
 		return err
