@@ -2,6 +2,7 @@ package api
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/uSipipo-Team/usipipo-agent/internal/metrics"
@@ -152,6 +153,7 @@ func CreateWireGuardPeerHandler(c *gin.Context) {
 }
 
 // DeleteWireGuardPeerHandler deletes a WireGuard peer
+// Idempotent: returns 204 even if peer doesn't exist
 func DeleteWireGuardPeerHandler(c *gin.Context) {
 	if wireguardClient == nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -164,6 +166,16 @@ func DeleteWireGuardPeerHandler(c *gin.Context) {
 
 	err := wireguardClient.DeletePeer(c.Request.Context(), name)
 	if err != nil {
+		// Check if error is "peer not found" - treat as success (idempotent)
+		if strings.Contains(err.Error(), "peer not found") ||
+		   strings.Contains(err.Error(), "no such process") ||
+		   strings.Contains(err.Error(), "not found") {
+			// Peer already deleted or doesn't exist - return success
+			c.Status(http.StatusNoContent)
+			return
+		}
+		
+		// Real error - return 500
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}

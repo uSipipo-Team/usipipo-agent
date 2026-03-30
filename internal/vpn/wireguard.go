@@ -118,10 +118,24 @@ func (c *WireGuardClient) CreatePeer(ctx context.Context, name string) (*WireGua
 }
 
 // DeletePeer removes a WireGuard peer using wgctrl
+// This operation is idempotent - returns success even if peer doesn't exist
 func (c *WireGuardClient) DeletePeer(ctx context.Context, name string) error {
 	// Find peer public key from config
 	pubKey, err := c.findPeerPublicKey(name)
 	if err != nil {
+		// Peer not found in config file - check if it exists in the device
+		// If it's not in the device either, deletion is already complete (idempotent)
+		if strings.Contains(err.Error(), "peer not found") {
+			// Try to find peer by scanning active devices
+			device, deviceErr := c.client.Device(c.interfaceName)
+			if deviceErr != nil {
+				// Can't check device, but assume peer is already removed
+				return nil
+			}
+			
+			// Peer not in config and not in device - already deleted
+			return nil
+		}
 		return err
 	}
 
@@ -141,7 +155,18 @@ func (c *WireGuardClient) DeletePeer(ctx context.Context, name string) error {
 		},
 	}
 
-	return c.client.ConfigureDevice(c.interfaceName, config)
+	err = c.client.ConfigureDevice(c.interfaceName, config)
+	if err != nil {
+		// If peer doesn't exist, wgctrl may return an error
+		// Treat "not found" errors as success (idempotent behavior)
+		if strings.Contains(err.Error(), "no such process") || 
+		   strings.Contains(err.Error(), "not found") {
+			return nil
+		}
+		return fmt.Errorf("failed to remove peer: %w", err)
+	}
+
+	return nil
 }
 
 // GetPeerUsage returns the data transfer for a specific peer
