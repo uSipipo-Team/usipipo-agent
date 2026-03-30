@@ -15,5 +15,8 @@ StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=usipipo-agent
 
+# Allow WireGuard operations via netlink
+AmbientCapabilities=CAP_NET_ADMIN CAP_NET_RAW
+
 [Install]
 WantedBy=multi-user.target
