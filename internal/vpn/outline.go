@@ -124,6 +124,44 @@ func (c *OutlineClient) GetKeyUsage(ctx context.Context, keyID string) (uint64, 
 	return result.BytesTransferredByUserId[keyID], nil
 }
 
+// ListKeys returns all Outline access keys
+func (c *OutlineClient) ListKeys(ctx context.Context) ([]*OutlineKey, error) {
+	resp, err := c.client.R().
+		SetContext(ctx).
+		Get(c.apiURL + "/access-keys")
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to get keys: %w", err)
+	}
+
+	var result struct {
+		AccessKeys []struct {
+			ID        string `json:"id"`
+			Name      string `json:"name"`
+			AccessURL string `json:"accessUrl"`
+			Port      int    `json:"port"`
+			Method    string `json:"method"`
+		} `json:"accessKeys"`
+	}
+
+	if err := json.Unmarshal(resp.Body(), &result); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	keys := make([]*OutlineKey, len(result.AccessKeys))
+	for i, key := range result.AccessKeys {
+		keys[i] = &OutlineKey{
+			ID:        key.ID,
+			Name:      key.Name,
+			AccessURL: key.AccessURL,
+			Port:      key.Port,
+			Method:    key.Method,
+		}
+	}
+
+	return keys, nil
+}
+
 // GetActiveKeysCount returns the number of active keys
 func (c *OutlineClient) GetActiveKeysCount(ctx context.Context) (int, error) {
 	resp, err := c.client.R().

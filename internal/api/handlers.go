@@ -134,8 +134,8 @@ func RegenerateOutlineKeyHandler(c *gin.Context) {
 
 	keyID := c.Param("id")
 
-	// Get existing key info first
-	device, err := outlineClient.GetServerInfo(c.Request.Context())
+	// Get existing keys to find the name
+	keys, err := outlineClient.ListKeys(c.Request.Context())
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -143,7 +143,7 @@ func RegenerateOutlineKeyHandler(c *gin.Context) {
 
 	// Find the key to get its name
 	var keyName string
-	for _, key := range device.Keys {
+	for _, key := range keys {
 		if key.ID == keyID {
 			keyName = key.Name
 			break
