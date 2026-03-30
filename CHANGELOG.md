@@ -7,6 +7,93 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.2.0] - 2026-03-29
+
+### 🤖 Auto-Registration with Backend
+
+**Major Feature:** Agents can now automatically register with the backend on first startup, eliminating manual database entries.
+
+#### New Components
+- **registrar package** - Handles registration with backend
+  - `RegisterOrGetServerID()` - Register or retrieve existing server ID
+  - `collectMetadata()` - Auto-collect hostname, IP, country, OS, version
+  - `saveServerIDToEnv()` - Persist UUID to .env file
+  - `IsValidUUID()` - UUID format validation
+
+- **geoip utility** - GeoIP location lookup
+  - Uses ip-api.com for IP geolocation
+  - Returns: country, region, city, public IP
+  - Graceful fallback on lookup failure
+
+#### Modified Components
+- **reporter.go** - Integrated auto-registration before sending metrics
+  - Checks if SERVER_ID is valid UUID
+  - If not, triggers registration flow
+  - Saves returned UUID for subsequent sends
+
+- **config.go** - New configuration variables
+  - `AgentURL` - Public agent API URL
+  - `SupportsOutline` - Outline VPN support flag
+  - `SupportsWireGuard` - WireGuard support flag
+
+#### Configuration Changes
+- **.env.example** - Updated with new variables
+  - `AGENT_API_KEY` - Pre-generated from backend admin
+  - `SERVER_ID` - Auto-filled after registration (leave empty initially)
+  - `AGENT_URL` - Public agent URL
+  - `SUPPORTS_OUTLINE`, `SUPPORTS_WIREGUARD` - Feature flags
+
+#### Registration Flow
+```
+1. Admin generates API key via backend /admin/agent-api-keys
+2. Admin copies AGENT_API_KEY to agent .env
+3. Agent starts → reads AGENT_API_KEY
+4. Agent collects metadata (hostname, IP, country, OS, version)
+5. Agent POST /api/v1/servers/register-agent → Backend
+6. Backend validates key → creates server → returns UUID
+7. Agent saves UUID to .env (SERVER_ID=...)
+8. Agent sends metrics every 1 minute using UUID
+```
+
+#### Metadata Collected
+- `hostname` - VPS hostname
+- `ip_address` - Public IP (from GeoIP)
+- `country_code`, `country_name` - Country info
+- `region`, `city` - Location details
+- `agent_version` - Agent version (0.2.0)
+- `os_type`, `os_arch` - OS and architecture
+- `agent_url` - Agent public URL
+- `supports_outline`, `supports_wireguard` - Feature flags
+
+#### Documentation
+- **AUTO-REGISTRATION-GUIDE.md** - Complete setup and troubleshooting guide
+  - Admin setup instructions
+  - API reference
+  - Troubleshooting section
+  - Security considerations
+
+### 🔧 Technical Details
+- **Files Created:** 3 (registrar.go, geoip.go, AUTO-REGISTRATION-GUIDE.md)
+- **Files Modified:** 3 (reporter.go, config.go, .env.example)
+- **Lines Added:** ~550 lines
+- **Dependencies:** None (uses standard library + existing resty)
+
+### ✅ Testing
+- [x] Manual testing with backend v0.12.0
+- [x] Registration flow verified
+- [x] Metadata collection verified
+- [x] .env persistence verified
+
+### ⚠️ Breaking Changes
+None - backward compatible. Existing agents with SERVER_ID continue working.
+
+### 📝 Related
+- usipipo-backend: v0.12.0 (auto-registration API endpoints)
+- Design: `usipipo-docs/plans/agent/2026-03-29-agent-auto-registration-design.md`
+- Plan: `usipipo-docs/plans/agent/2026-03-29-agent-auto-registration-plan.md`
+
+---
+
 ## [Unreleased]
 
 ### Planned

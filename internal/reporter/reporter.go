@@ -7,7 +7,9 @@ import (
 	"time"
 
 	"github.com/go-resty/resty/v2"
+	"github.com/uSipipo-Team/usipipo-agent/internal/config"
 	"github.com/uSipipo-Team/usipipo-agent/internal/metrics"
+	"github.com/uSipipo-Team/usipipo-agent/internal/registrar"
 )
 
 // Reporter pushes metrics to the backend
@@ -65,12 +67,29 @@ func (r *Reporter) sendMetrics() {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
+	// Ensure we have a valid server_id
+	if r.serverID == "" || !registrar.IsValidUUID(r.serverID) {
+		log.Println("Server ID not set or invalid, attempting registration...")
+
+		reg := registrar.NewRegistrar(r.backendURL, r.apiKey, r.serverID)
+		serverID, err := reg.RegisterOrGetServerID()
+		if err != nil {
+			log.Printf("Failed to register: %v", err)
+			return
+		}
+
+		r.serverID = serverID
+		log.Printf("Registered with server_id: %s", serverID)
+	}
+
+	// Collect metrics
 	m, err := r.collector.GetMetrics(ctx)
 	if err != nil {
 		log.Printf("Failed to collect metrics: %v", err)
 		return
 	}
 
+	// Send metrics
 	endpoint := fmt.Sprintf("%s/api/v1/metrics/agents/%s", r.backendURL, r.serverID)
 
 	resp, err := r.client.R().
@@ -81,7 +100,6 @@ func (r *Reporter) sendMetrics() {
 
 	if err != nil {
 		log.Printf("Failed to send metrics: %v", err)
-		// Retry logic with exponential backoff could be added here
 		return
 	}
 
