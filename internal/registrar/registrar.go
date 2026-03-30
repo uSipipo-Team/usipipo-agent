@@ -57,7 +57,7 @@ func NewRegistrar(cfg *config.Config) *Registrar {
 // RegisterOrGetServerID registers agent or returns existing server ID
 func (r *Registrar) RegisterOrGetServerID() (string, error) {
 	// If server ID already set and valid UUID, use it
-	if r.serverID != "" && isValidUUID(r.serverID) {
+	if r.serverID != "" && IsValidUUID(r.serverID) {
 		return r.serverID, nil
 	}
 
