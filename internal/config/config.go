@@ -12,6 +12,7 @@ type Config struct {
 	BackendURL         string
 	ServerID           string
 	OutlineAPIURL      string
+	OutlineVerifySSL   bool
 	WireGuardInterface string
 	AgentURL           string
 	SupportsOutline    bool
@@ -34,6 +35,7 @@ func Load() *Config {
 		BackendURL:         getEnv("BACKEND_URL", ""),
 		ServerID:           getEnv("SERVER_ID", ""),
 		OutlineAPIURL:      getEnv("OUTLINE_API_URL", "http://localhost:8081"),
+		OutlineVerifySSL:   getEnv("OUTLINE_VERIFY_SSL", "false") == "true",
 		WireGuardInterface: getEnv("WG_INTERFACE", "wg0"),
 		AgentURL:           getEnv("AGENT_URL", "http://localhost:8080"),
 		SupportsOutline:    getEnv("SUPPORTS_OUTLINE", "true") == "true",
