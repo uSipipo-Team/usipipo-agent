@@ -7,6 +7,50 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.2.2] - 2026-03-30
+
+### 🐛 Bug Fixes
+
+**Build Fixes:**
+- ✅ Fix `NewRegistrar` function signature mismatch
+- ✅ Add `NewRegistrarFromValues()` helper for callers without Config object
+- ✅ Update `reporter.go` to use `NewRegistrarFromValues()`
+- ✅ Remove unused `config` import from `reporter.go`
+
+**CI/CD:**
+- ✅ All 6 platform builds passing (linux/darwin/windows × amd64/arm64)
+- ✅ Release artifacts generated successfully
+
+### 🔧 Technical Details
+- **Files Modified:** 2 (`registrar.go`, `reporter.go`)
+- **Lines Added:** 13 lines
+- **Breaking Changes:** None
+
+### 📝 Related
+- Fixes compilation errors in v0.2.0 and v0.2.1
+- Part of auto-registration feature stabilization
+
+---
+
+## [0.2.1] - 2026-03-30
+
+### 🐛 Bug Fixes
+
+**Build Fixes:**
+- ✅ Fix `isValidUUID` → `IsValidUUID` (public function visibility)
+- ✅ Fix undefined function error in `registrar.go`
+
+**CI/CD:**
+- ⚠️ Release workflow triggered but build failed due to additional issues
+- ⚠️ This version was superseded by v0.2.2
+
+### 🔧 Technical Details
+- **Files Modified:** 1 (`registrar.go`)
+- **Lines Changed:** 1 line
+- **Note:** This was an intermediate fix, use v0.2.2 instead
+
+---
+
 ## [0.2.0] - 2026-03-29
 
 ### 🤖 Auto-Registration with Backend
