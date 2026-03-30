@@ -13,6 +13,9 @@ type Config struct {
 	ServerID           string
 	OutlineAPIURL      string
 	WireGuardInterface string
+	AgentURL           string
+	SupportsOutline    bool
+	SupportsWireGuard  bool
 	RateLimitEnabled   bool
 	RateLimitRPS       float64
 	RateLimitBurst     int
@@ -32,6 +35,9 @@ func Load() *Config {
 		ServerID:           getEnv("SERVER_ID", ""),
 		OutlineAPIURL:      getEnv("OUTLINE_API_URL", "http://localhost:8081"),
 		WireGuardInterface: getEnv("WG_INTERFACE", "wg0"),
+		AgentURL:           getEnv("AGENT_URL", "http://localhost:8080"),
+		SupportsOutline:    getEnv("SUPPORTS_OUTLINE", "true") == "true",
+		SupportsWireGuard:  getEnv("SUPPORTS_WIREGUARD", "true") == "true",
 		RateLimitEnabled:   enabled,
 		RateLimitRPS:       rps,
 		RateLimitBurst:     burst,
