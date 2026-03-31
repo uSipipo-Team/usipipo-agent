@@ -19,12 +19,14 @@ type GeoIPResponse struct {
 
 // GetLocation fetches public IP and geo location using HTTPS
 func GetLocation(client *resty.Client) (*GeoIPResponse, error) {
-	// Configure client with timeout and retry logic
-	client.SetTimeout(10 * time.Second)
-	client.SetRetryCount(2)
-	client.SetRetryWaitTime(1 * time.Second)
-	
-	resp, err := client.R().
+	// Create dedicated client to avoid modifying shared instance
+	geoClient := resty.New()
+	geoClient.SetTimeout(10 * time.Second)
+	geoClient.SetRetryCount(2)
+	geoClient.SetRetryWaitTime(1 * time.Second)
+	geoClient.SetRetryMaxWaitTime(5 * time.Second)
+
+	resp, err := geoClient.R().
 		Get("https://ip-api.com/json/") // HTTPS for security
 
 	if err != nil {

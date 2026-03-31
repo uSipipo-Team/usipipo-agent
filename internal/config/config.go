@@ -33,8 +33,14 @@ func Load() *Config {
 	enabled := getEnv("RATE_LIMIT_ENABLED", "true") == "true"
 	
 	// Parse HTTP client timeout
-	timeout, _ := time.ParseDuration(getEnv("HTTP_CLIENT_TIMEOUT", "30s"))
+	timeout, err := time.ParseDuration(getEnv("HTTP_CLIENT_TIMEOUT", "30s"))
+	if err != nil {
+		log.Printf("⚠️  WARNING: Invalid HTTP_CLIENT_TIMEOUT '%s': %v. Using default 30s",
+			getEnv("HTTP_CLIENT_TIMEOUT", "30s"), err)
+		timeout = 30 * time.Second
+	}
 	if timeout <= 0 {
+		log.Printf("⚠️  WARNING: HTTP_CLIENT_TIMEOUT must be positive. Using default 30s")
 		timeout = 30 * time.Second
 	}
 
