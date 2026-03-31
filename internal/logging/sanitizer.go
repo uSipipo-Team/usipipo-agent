@@ -25,9 +25,9 @@ func maskAPIKey(key string) string {
 
 	// Special handling for agent_ prefix
 	if strings.HasPrefix(key, "agent_") {
-		// Valid API key should be "agent_" + 32 chars = 39 chars total
+		// Valid API key should be "agent_" (6 chars) + 32 chars = 38 chars total
 		// If it starts with agent_ but isn't the right length, it's a partial key
-		if len(key) != 39 {
+		if len(key) != 38 {
 			return "***"
 		}
 	}
