@@ -8,6 +8,7 @@ import (
 
 	"github.com/uSipipo-Team/usipipo-agent/internal/api"
 	"github.com/uSipipo-Team/usipipo-agent/internal/config"
+	"github.com/uSipipo-Team/usipipo-agent/internal/logging"
 	"github.com/uSipipo-Team/usipipo-agent/internal/metrics"
 	"github.com/uSipipo-Team/usipipo-agent/internal/reporter"
 	"github.com/uSipipo-Team/usipipo-agent/internal/vpn"
