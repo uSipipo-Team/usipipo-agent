@@ -20,6 +20,12 @@ func main() {
 	if cfg.APIKey == "" {
 		log.Fatal("AGENT_API_KEY is required")
 	}
+
+	// Validate API key format at startup (fail fast)
+	if err := cfg.ValidateAPIKey(); err != nil {
+		log.Fatalf("Invalid API key configuration: %v", err)
+	}
+
 	if cfg.BackendURL == "" {
 		log.Fatal("BACKEND_URL is required")
 	}

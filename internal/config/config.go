@@ -1,8 +1,11 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"strconv"
+
+	"github.com/uSipipo-Team/usipipo-agent/internal/utils/validation"
 )
 
 // Config holds the agent configuration
@@ -44,6 +47,21 @@ func Load() *Config {
 		RateLimitRPS:       rps,
 		RateLimitBurst:     burst,
 	}
+}
+
+// ValidateAPIKey checks if the API key meets security requirements
+// Returns error if key is invalid, nil if valid
+func (c *Config) ValidateAPIKey() error {
+	if c.APIKey == "" {
+		return fmt.Errorf("API key is required")
+	}
+
+	if !validation.IsValidAPIKeyFormat(c.APIKey) {
+		return fmt.Errorf("API key does not match required format: %s",
+			validation.APIKeyFormat())
+	}
+
+	return nil
 }
 
 // getEnv gets environment variable or returns default value
