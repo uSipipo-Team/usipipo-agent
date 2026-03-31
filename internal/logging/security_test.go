@@ -3,7 +3,9 @@ package logging
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -224,5 +226,56 @@ func TestParseLogLevel(t *testing.T) {
 				t.Errorf("ParseLogLevel(%q) = %v, expected %v", tt.input, result, tt.expected)
 			}
 		})
+	}
+}
+
+func TestSecurityLogger_Concurrent(t *testing.T) {
+	var buf bytes.Buffer
+	logger := &SecurityLogger{
+		out:      &buf,
+		level:    InfoLevel,
+		serverID: "test-server",
+	}
+
+	var wg sync.WaitGroup
+	for i := 0; i < 100; i++ {
+		wg.Add(1)
+		go func(id int) {
+			defer wg.Done()
+			logger.LogAuthFailure(
+				fmt.Sprintf("192.168.1.%d", id),
+				"/api/v1/status",
+				"test",
+				"Mozilla/5.0",
+			)
+		}(i)
+	}
+
+	wg.Wait()
+
+	// Verify all logs were written without panic
+	lines := strings.Count(buf.String(), "\n")
+	if lines != 100 {
+		t.Errorf("Expected 100 log lines, got %d", lines)
+	}
+}
+
+func TestSecurityLogger_LevelFiltering(t *testing.T) {
+	var buf bytes.Buffer
+	logger := &SecurityLogger{
+		out:      &buf,
+		level:    WarnLevel,
+		serverID: "test-server",
+	}
+
+	logger.LogStartup("test") // INFO level - should not be logged
+	if buf.Len() > 0 {
+		t.Errorf("Expected no output for INFO level with WARN logger, got: %s", buf.String())
+	}
+
+	buf.Reset()
+	logger.LogAuthFailure("192.168.1.1", "/api", "test", "Mozilla") // WARN level - should be logged
+	if buf.Len() == 0 {
+		t.Error("Expected WARN level log to be written")
 	}
 }

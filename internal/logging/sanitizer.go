@@ -1,6 +1,7 @@
 package logging
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 )
@@ -96,11 +97,41 @@ func containsSensitiveData(s string) bool {
 	if strings.Contains(s, "agent_") {
 		return true
 	}
-	
+
 	// Check for bearer token
 	if strings.Contains(s, "Bearer ") {
 		return true
 	}
-	
+
 	return false
+}
+
+// sanitizeValue recursively sanitizes values of any type
+// Handles strings, slices, maps, and other types
+func sanitizeValue(value interface{}) interface{} {
+	switch v := value.(type) {
+	case string:
+		return sanitizeString(v)
+	case []string:
+		sanitized := make([]string, len(v))
+		for i, s := range v {
+			sanitized[i] = sanitizeString(s)
+		}
+		return sanitized
+	case []interface{}:
+		sanitized := make([]interface{}, len(v))
+		for i, val := range v {
+			sanitized[i] = sanitizeValue(val)
+		}
+		return sanitized
+	case map[string]interface{}:
+		sanitized := make(map[string]interface{})
+		for k, val := range v {
+			sanitized[k] = sanitizeValue(val)
+		}
+		return sanitized
+	default:
+		// For other types (int, bool, etc.), convert to string and sanitize
+		return sanitizeString(fmt.Sprintf("%v", v))
+	}
 }

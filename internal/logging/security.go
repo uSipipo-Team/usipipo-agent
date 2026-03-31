@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"strings"
 	"sync"
 	"time"
 )
@@ -55,11 +56,9 @@ func (sl *SecurityLogger) log(entry LogEntry) {
 	entry.UserAgent = sanitizeString(entry.UserAgent)
 	entry.Message = sanitizeString(entry.Message)
 	
-	// Sanitize details
+	// Sanitize details recursively
 	for key, value := range entry.Details {
-		if str, ok := value.(string); ok {
-			entry.Details[key] = sanitizeString(str)
-		}
+		entry.Details[key] = sanitizeValue(value)
 	}
 	
 	// Encode as JSON
@@ -166,9 +165,9 @@ func goVersion() string {
 	return "go1.21+"
 }
 
-// ParseLogLevel parses a string into a LogLevel
+// ParseLogLevel parses a string into a LogLevel (case-insensitive)
 func ParseLogLevel(level string) LogLevel {
-	switch level {
+	switch strings.ToUpper(strings.TrimSpace(level)) {
 	case "INFO":
 		return InfoLevel
 	case "WARN":
@@ -176,6 +175,9 @@ func ParseLogLevel(level string) LogLevel {
 	case "ERROR":
 		return ErrorLevel
 	default:
+		if level != "" {
+			log.Printf("Warning: Unknown log level %q, defaulting to INFO", level)
+		}
 		return InfoLevel
 	}
 }
