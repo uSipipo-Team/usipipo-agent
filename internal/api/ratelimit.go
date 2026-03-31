@@ -2,11 +2,18 @@ package api
 
 import (
 	"fmt"
+	"log"
 	"sync"
 	"time"
 
 	"golang.org/x/time/rate"
 )
+
+// IPLimiter wraps rate limiter with last access time for proper cleanup
+type IPLimiter struct {
+	limiter    *rate.Limiter
+	lastAccess time.Time
+}
 
 // FailureTracker tracks authentication failures for an IP
 type FailureTracker struct {
@@ -19,8 +26,8 @@ type FailureTracker struct {
 
 // HybridRateLimiter combines IP-based and key-based rate limiting
 type HybridRateLimiter struct {
-	// IP-based limiters
-	ipLimiters map[string]*rate.Limiter
+	// IP-based limiters with access tracking
+	ipLimiters map[string]*IPLimiter
 
 	// API key-based limiters
 	keyLimiters map[string]*rate.Limiter
@@ -54,6 +61,7 @@ type HybridRateLimiterConfig struct {
 	LockoutDuration  time.Duration // How long lockout lasts
 	BackoffBase      time.Duration // Initial backoff delay
 	BackoffMax       time.Duration // Maximum backoff delay
+	FailureWindow    time.Duration // Window for counting failures (default: 5m)
 
 	// Cleanup
 	CleanupInterval time.Duration // How often to clean old entries
@@ -70,10 +78,15 @@ type RateLimitResponse struct {
 // NewHybridRateLimiter creates a new hybrid rate limiter
 func NewHybridRateLimiter(config *HybridRateLimiterConfig) *HybridRateLimiter {
 	rl := &HybridRateLimiter{
-		ipLimiters:     make(map[string]*rate.Limiter),
+		ipLimiters:     make(map[string]*IPLimiter),
 		keyLimiters:    make(map[string]*rate.Limiter),
 		authFailures:   make(map[string]*FailureTracker),
 		config:         config,
+	}
+
+	// Set default failure window if not specified
+	if rl.config.FailureWindow == 0 {
+		rl.config.FailureWindow = 5 * time.Minute
 	}
 
 	// Start cleanup goroutine
@@ -87,7 +100,8 @@ func NewHybridRateLimiter(config *HybridRateLimiterConfig) *HybridRateLimiter {
 // getBackoffDelay calculates delay based on failure count
 // Sequence: 1s, 2s, 4s, 8s, 16s, 30s, 30s, ...
 func (ft *FailureTracker) getBackoffDelay(base, max time.Duration) time.Duration {
-	// Backoff levels: 0=1s, 1=2s, 2=4s, 3=8s, 4=16s, 5+=30s
+	// Exponential backoff: 2^n seconds, capped at 30s
+	// Level 0: 1s, Level 1: 2s, Level 2: 4s, Level 3: 8s, Level 4: 16s, Level 5+: 30s
 	delays := []time.Duration{
 		1 * time.Second,
 		2 * time.Second,
@@ -117,11 +131,12 @@ func (ft *FailureTracker) isLockedOut() bool {
 }
 
 // checkAuthFailureLimit checks if request should be blocked due to auth failures
+// Holds read lock for the entire check to ensure consistency
 func (rl *HybridRateLimiter) checkAuthFailureLimit(ip string) (bool, time.Duration, error) {
 	rl.mu.RLock()
-	tracker, exists := rl.authFailures[ip]
-	rl.mu.RUnlock()
+	defer rl.mu.RUnlock()
 
+	tracker, exists := rl.authFailures[ip]
 	if !exists {
 		return true, 0, nil // Allow
 	}
@@ -161,14 +176,22 @@ func (rl *HybridRateLimiter) recordFailure(ip string) {
 		rl.authFailures[ip] = tracker
 	}
 
-	// Check if lockout expired
+	// Check if lockout expired and reset
+	if !tracker.LockedUntil.IsZero() && tracker.LockedUntil.Before(now) {
+		// Lockout expired, reset tracker
+		tracker.Count = 0
+		tracker.BackoffLevel = 0
+		tracker.LockedUntil = time.Time{}
+		tracker.FirstFail = now
+	}
+
+	// Check if still locked out (don't increment if so)
 	if tracker.isLockedOut() {
-		// Still locked, don't increment
 		return
 	}
 
-	// Check if we need to reset the window (5 minutes)
-	if now.Sub(tracker.FirstFail) > 5*time.Minute {
+	// Check if we need to reset the window
+	if now.Sub(tracker.FirstFail) > rl.config.FailureWindow {
 		tracker.Count = 0
 		tracker.FirstFail = now
 		tracker.BackoffLevel = 0
@@ -200,18 +223,30 @@ func (rl *HybridRateLimiter) AllowIP(ip string, isAuthEndpoint bool) (*RateLimit
 		burst = rl.config.BurstSize
 	}
 
-	limiter, exists := rl.ipLimiters[ip]
+	ipLimiter, exists := rl.ipLimiters[ip]
 	if !exists {
-		limiter = rate.NewLimiter(rate.Limit(rps), burst)
-		rl.ipLimiters[ip] = limiter
+		limiter := rate.NewLimiter(rate.Limit(rps), burst)
+		ipLimiter = &IPLimiter{
+			limiter:    limiter,
+			lastAccess: time.Now(),
+		}
+		rl.ipLimiters[ip] = ipLimiter
+	} else {
+		// Update last access time
+		ipLimiter.lastAccess = time.Now()
 	}
 
-	// Calculate response info
-	now := time.Now()
-	remaining := limiter.Burst() - limiter.Tokens()
+	limiter := ipLimiter.limiter
+
+	// Consume token FIRST
+	allowed := limiter.Allow()
+
+	// Then calculate remaining tokens
+	remaining := int(limiter.Tokens())
 	if remaining < 0 {
 		remaining = 0
 	}
+	now := time.Now()
 	resetTime := now.Add(time.Duration(float64(time.Second) * float64(burst) / rps))
 
 	resp := &RateLimitResponse{
@@ -220,7 +255,7 @@ func (rl *HybridRateLimiter) AllowIP(ip string, isAuthEndpoint bool) (*RateLimit
 		Limit:     burst,
 	}
 
-	return resp, limiter.Allow()
+	return resp, allowed
 }
 
 // AllowKey checks if request is allowed by API key-based rate limit
@@ -237,7 +272,11 @@ func (rl *HybridRateLimiter) AllowKey(apiKey string) (*RateLimitResponse, bool) 
 		rl.keyLimiters[apiKey] = limiter
 	}
 
-	remaining := limiter.Burst() - limiter.Tokens()
+	// Consume token FIRST
+	allowed := limiter.Allow()
+
+	// Then calculate remaining tokens
+	remaining := int(limiter.Tokens())
 	if remaining < 0 {
 		remaining = 0
 	}
@@ -251,7 +290,7 @@ func (rl *HybridRateLimiter) AllowKey(apiKey string) (*RateLimitResponse, bool) 
 		Limit:     rl.config.KeyBurst,
 	}
 
-	return resp, limiter.Allow()
+	return resp, allowed
 }
 
 // cleanup removes old entries to prevent memory leaks
@@ -262,12 +301,9 @@ func (rl *HybridRateLimiter) cleanup() {
 	now := time.Now()
 	ttl := rl.config.EntryTTL
 
-	// Cleanup IP limiters (aggressive - IPs change frequently)
-	for ip, limiter := range rl.ipLimiters {
-		// Check if limiter is fully replenished (not being used)
-		if limiter.Tokens() >= float64(limiter.Burst()) {
-			// Limiter is full, check how long since last use
-			// For simplicity, we'll use a heuristic: if it's been full for TTL, remove it
+	// Cleanup IP limiters with proper TTL tracking
+	for ip, ipLimiter := range rl.ipLimiters {
+		if now.Sub(ipLimiter.lastAccess) > ttl {
 			delete(rl.ipLimiters, ip)
 		}
 	}
@@ -285,12 +321,21 @@ func (rl *HybridRateLimiter) cleanup() {
 	// Note: We don't cleanup key limiters aggressively as keys are fewer and more stable
 }
 
-// startCleanup starts the periodic cleanup goroutine
+// startCleanup starts the periodic cleanup goroutine with panic recovery
 func (rl *HybridRateLimiter) startCleanup() {
 	ticker := time.NewTicker(rl.config.CleanupInterval)
 	go func() {
+		defer ticker.Stop()
 		for range ticker.C {
-			rl.cleanup()
+			func() {
+				defer func() {
+					if r := recover(); r != nil {
+						// Log panic but don't crash the server
+						log.Printf("Panic in rate limiter cleanup: %v", r)
+					}
+				}()
+				rl.cleanup()
+			}()
 		}
 	}()
 }
