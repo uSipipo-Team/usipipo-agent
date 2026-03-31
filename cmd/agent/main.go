@@ -8,6 +8,7 @@ import (
 
 	"github.com/uSipipo-Team/usipipo-agent/internal/api"
 	"github.com/uSipipo-Team/usipipo-agent/internal/config"
+	"github.com/uSipipo-Team/usipipo-agent/internal/logging"
 	"github.com/uSipipo-Team/usipipo-agent/internal/metrics"
 	"github.com/uSipipo-Team/usipipo-agent/internal/reporter"
 	"github.com/uSipipo-Team/usipipo-agent/internal/vpn"
@@ -67,6 +68,14 @@ func main() {
 	}
 	server := api.NewServer(cfg.APIKey, cfg.OutlineAPIURL, rateConfig)
 
+	// Initialize security logger
+	logLevel := logging.ParseLogLevel(os.Getenv("LOG_LEVEL"))
+	securityLogger := logging.NewSecurityLogger(cfg.ServerID, "0.2.0", logLevel)
+	api.SetSecurityLogger(securityLogger)
+	
+	// Log startup event
+	securityLogger.LogStartup("config-hash-placeholder")
+
 	// Initialize and start metrics reporter
 	metricsReporter := reporter.NewReporter(cfg.BackendURL, cfg.ServerID, cfg.APIKey, metricsCollector)
 	go metricsReporter.Start()
@@ -86,6 +95,9 @@ func main() {
 	<-sigChan
 
 	log.Println("Shutting down...")
+
+	// Log shutdown event
+	securityLogger.LogShutdown()
 
 	// Stop reporter
 	metricsReporter.Stop()
