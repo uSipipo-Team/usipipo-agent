@@ -68,7 +68,14 @@ func main() {
 	server := api.NewServer(cfg.APIKey, cfg.OutlineAPIURL, rateConfig)
 
 	// Initialize and start metrics reporter
-	metricsReporter := reporter.NewReporter(cfg.BackendURL, cfg.ServerID, cfg.APIKey, metricsCollector)
+	metricsReporter := reporter.NewReporter(
+		cfg.BackendURL,
+		cfg.ServerID,
+		cfg.APIKey,
+		metricsCollector,
+		cfg.OutlineVerifySSL,
+		cfg.HTTPClientTimeout,
+	)
 	go metricsReporter.Start()
 
 	// Start HTTP server in goroutine
