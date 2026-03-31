@@ -10,9 +10,9 @@ import (
 const maxLogLength = 1000
 
 // maskAPIKey masks an API key for safe logging
-// Input:  "agent_a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7"
+// Input:  "agent_a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7" (39 chars)
 // Output: "agen...p6q7"
-// Short keys (< 8 chars total) are replaced with "***"
+// Short keys (< 8 chars) or partial agent_ keys are replaced with "***"
 func maskAPIKey(key string) string {
 	if key == "" {
 		return "***"
@@ -23,7 +23,16 @@ func maskAPIKey(key string) string {
 		return "***"
 	}
 
-	// Show first 4 and last 4 characters for any 8+ char string
+	// Special handling for agent_ prefix
+	if strings.HasPrefix(key, "agent_") {
+		// Valid API key should be "agent_" + 32 chars = 39 chars total
+		// If it starts with agent_ but isn't the right length, it's a partial key
+		if len(key) != 39 {
+			return "***"
+		}
+	}
+
+	// Show first 4 and last 4 characters
 	return key[:4] + "..." + key[len(key)-4:]
 }
 
