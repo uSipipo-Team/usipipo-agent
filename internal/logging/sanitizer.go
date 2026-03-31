@@ -12,7 +12,7 @@ const maxLogLength = 1000
 // maskAPIKey masks an API key for safe logging
 // Input:  "agent_a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7"
 // Output: "agen...p6q7"
-// Short keys (< 8 chars total) or invalid formats are replaced with "***"
+// Short keys (< 8 chars total) are replaced with "***"
 func maskAPIKey(key string) string {
 	if key == "" {
 		return "***"
@@ -23,13 +23,7 @@ func maskAPIKey(key string) string {
 		return "***"
 	}
 
-	// If key doesn't look like a proper API key (agent_ + 32 chars = 39 chars total), mask it
-	// For partial keys like "agent_short" (11 chars), also mask completely
-	if !strings.HasPrefix(key, "agent_") || len(key) < 39 {
-		return "***"
-	}
-
-	// Show first 4 and last 4 characters
+	// Show first 4 and last 4 characters for any 8+ char string
 	return key[:4] + "..." + key[len(key)-4:]
 }
 
@@ -50,25 +44,42 @@ func sanitizeString(s string) string {
 	// Remove potential API key patterns in strings
 	// This is a simple check - the main protection is maskAPIKey
 	if strings.Contains(s, "agent_") {
-		// Try to find and mask API key patterns
-		parts := strings.Split(s, "agent_")
-		for i := 1; i < len(parts); i++ {
-			// Find the end of the potential key (space, newline, or 40 chars)
-			end := 40
-			if len(parts[i]) < 40 {
-				end = len(parts[i])
-			}
-			// Look for space or newline
-			for j, c := range parts[i] {
+		// Find and mask API key patterns
+		result := ""
+		remaining := s
+		
+		for strings.Contains(remaining, "agent_") {
+			// Split at the next "agent_"
+			idx := strings.Index(remaining, "agent_")
+			result += remaining[:idx]
+			remaining = remaining[idx+6:] // Skip "agent_"
+			
+			// Find the end of the potential key (space, newline, or end of string)
+			end := 0
+			for i, c := range remaining {
 				if c == ' ' || c == '\n' || c == '\r' {
-					end = j
+					end = i
 					break
 				}
 			}
-			// Mask the key (maskAPIKey already includes the masked key without adding extra prefix)
-			parts[i] = maskAPIKey("agent_"+parts[i][:end]) + parts[i][end:]
+			if end == 0 {
+				end = len(remaining)
+			}
+			
+			// Limit to 40 chars max for key part
+			if end > 40 {
+				end = 40
+			}
+			
+			// Mask the key
+			keyPart := "agent_" + remaining[:end]
+			result += maskAPIKey(keyPart)
+			remaining = remaining[end:]
 		}
-		s = strings.Join(parts, "agent_")
+		
+		// Add any remaining text
+		result += remaining
+		s = result
 	}
 
 	return s
