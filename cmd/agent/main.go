@@ -8,10 +8,14 @@ import (
 
 	"github.com/uSipipo-Team/usipipo-agent/internal/api"
 	"github.com/uSipipo-Team/usipipo-agent/internal/config"
+	"github.com/uSipipo-Team/usipipo-agent/internal/logging"
 	"github.com/uSipipo-Team/usipipo-agent/internal/metrics"
 	"github.com/uSipipo-Team/usipipo-agent/internal/reporter"
 	"github.com/uSipipo-Team/usipipo-agent/internal/vpn"
 )
+
+// Version is set at build time via ldflags
+var Version = "0.2.0-dev"
 
 func main() {
 	cfg := config.Load()
@@ -20,6 +24,12 @@ func main() {
 	if cfg.APIKey == "" {
 		log.Fatal("AGENT_API_KEY is required")
 	}
+
+	// Validate API key format at startup (fail fast)
+	if err := cfg.ValidateAPIKey(); err != nil {
+		log.Fatalf("Invalid API key configuration: %v", err)
+	}
+
 	if cfg.BackendURL == "" {
 		log.Fatal("BACKEND_URL is required")
 	}
@@ -67,8 +77,24 @@ func main() {
 	}
 	server := api.NewServer(cfg.APIKey, cfg.OutlineAPIURL, rateConfig)
 
+	// Initialize security logger
+	logLevel := logging.ParseLogLevel(os.Getenv("LOG_LEVEL"))
+	securityLogger := logging.NewSecurityLogger(cfg.ServerID, Version, logLevel)
+	api.SetSecurityLogger(securityLogger)
+
+	// Log startup event
+	// TODO: Implement actual config hash calculation
+	securityLogger.LogStartup("config-hash-placeholder")
+
 	// Initialize and start metrics reporter
-	metricsReporter := reporter.NewReporter(cfg.BackendURL, cfg.ServerID, cfg.APIKey, metricsCollector)
+	metricsReporter := reporter.NewReporter(
+		cfg.BackendURL,
+		cfg.ServerID,
+		cfg.APIKey,
+		metricsCollector,
+		cfg.OutlineVerifySSL,
+		cfg.HTTPClientTimeout,
+	)
 	go metricsReporter.Start()
 
 	// Start HTTP server in goroutine
