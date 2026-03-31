@@ -38,8 +38,8 @@ func NewReporter(backendURL, serverID, apiKey string, collector *metrics.Collect
 	
 	client.SetTLSClientConfig(tlsConfig)
 	client.SetTimeout(timeout)
-	client.SetConnectTimeout(10 * time.Second)
-	
+	// Note: resty v2.11.0 doesn't have SetConnectTimeout, using SetTimeout instead
+
 	// Retry logic for transient failures
 	client.SetRetryCount(3)
 	client.SetRetryWaitTime(2 * time.Second)
