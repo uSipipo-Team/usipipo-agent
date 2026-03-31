@@ -13,6 +13,9 @@ import (
 	"github.com/uSipipo-Team/usipipo-agent/internal/vpn"
 )
 
+// Version is set at build time via ldflags
+var Version = "0.2.0-dev"
+
 func main() {
 	cfg := config.Load()
 
@@ -72,6 +75,15 @@ func main() {
 		Enabled:           cfg.RateLimitEnabled,
 	}
 	server := api.NewServer(cfg.APIKey, cfg.OutlineAPIURL, rateConfig)
+
+	// Initialize security logger
+	logLevel := logging.ParseLogLevel(os.Getenv("LOG_LEVEL"))
+	securityLogger := logging.NewSecurityLogger(cfg.ServerID, Version, logLevel)
+	api.SetSecurityLogger(securityLogger)
+
+	// Log startup event
+	// TODO: Implement actual config hash calculation
+	securityLogger.LogStartup("config-hash-placeholder")
 
 	// Initialize and start metrics reporter
 	metricsReporter := reporter.NewReporter(
