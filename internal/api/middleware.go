@@ -10,20 +10,28 @@ import (
 	"github.com/uSipipo-Team/usipipo-agent/internal/utils/validation"
 )
 
+// securityLogger is the global security logger instance
+var securityLogger *logging.SecurityLogger
+
+// SetSecurityLogger sets the global security logger instance
+func SetSecurityLogger(logger *logging.SecurityLogger) {
+	securityLogger = logger
+}
+
 // AuthFailureMiddleware tracks and enforces auth failure limits
 func AuthFailureMiddleware(rl *HybridRateLimiter) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ip := c.ClientIP()
 
 		// Check auth failure limits
-		allowed, retryAfter, err := rl.checkAuthFailureLimit(ip)
+		allowed, retryAfter, _ := rl.checkAuthFailureLimit(ip)
 		if !allowed {
 			c.Header("Retry-After", fmt.Sprintf("%.0f", retryAfter.Seconds()))
 			c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{
 				"error":       "Too many failed authentication attempts. Please try again later.",
 				"retry_after": int(retryAfter.Seconds()),
 			})
-			
+
 			// Log rate limit exceeded for auth failures
 			if securityLogger != nil {
 				securityLogger.LogRateLimitExceeded(ip, c.Request.URL.Path, 0)
