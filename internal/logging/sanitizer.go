@@ -12,33 +12,41 @@ const maxLogLength = 1000
 // maskAPIKey masks an API key for safe logging
 // Input:  "agent_a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6q7"
 // Output: "agen...p6q7"
-// Short keys or invalid formats are replaced with "***"
+// Short keys (< 8 chars total) or invalid formats are replaced with "***"
 func maskAPIKey(key string) string {
 	if key == "" {
 		return "***"
 	}
-	
+
 	// If key is too short, just mask it completely
 	if len(key) < 8 {
 		return "***"
 	}
-	
+
+	// If key doesn't look like a proper API key (agent_ + 32 chars = 39 chars total), mask it
+	// For partial keys like "agent_short" (11 chars), also mask completely
+	if !strings.HasPrefix(key, "agent_") || len(key) < 39 {
+		return "***"
+	}
+
 	// Show first 4 and last 4 characters
 	return key[:4] + "..." + key[len(key)-4:]
 }
 
 // sanitizeString removes potential sensitive patterns and truncates long strings
-// - Removes bearer tokens
+// - Removes bearer tokens (replaces "Bearer <token>" with "Bearer ***")
 // - Removes query parameters with secrets
 // - Truncates strings >1000 chars
 func sanitizeString(s string) string {
 	if len(s) > maxLogLength {
 		return s[:maxLogLength] + "..."
 	}
-	
-	// Remove potential bearer tokens
-	s = strings.ReplaceAll(s, "Bearer ", "Bearer ***")
-	
+
+	// Remove potential bearer tokens (replace "Bearer <secret>" with "Bearer ***")
+	if strings.HasPrefix(s, "Bearer ") {
+		return "Bearer ***"
+	}
+
 	// Remove potential API key patterns in strings
 	// This is a simple check - the main protection is maskAPIKey
 	if strings.Contains(s, "agent_") {
@@ -57,11 +65,12 @@ func sanitizeString(s string) string {
 					break
 				}
 			}
-			parts[i] = "agent_" + maskAPIKey("agent_"+parts[i][:end]) + parts[i][end:]
+			// Mask the key (maskAPIKey already includes the masked key without adding extra prefix)
+			parts[i] = maskAPIKey("agent_"+parts[i][:end]) + parts[i][end:]
 		}
 		s = strings.Join(parts, "agent_")
 	}
-	
+
 	return s
 }
 
