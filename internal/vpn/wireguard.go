@@ -8,7 +8,6 @@ import (
 	"regexp"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 	"unicode"
 
@@ -293,24 +292,15 @@ func (c *WireGuardClient) getNextAvailableIP() (string, error) {
 	defer lockFile.Close()
 
 	// Acquire exclusive lock with timeout (5 seconds)
+	// On Windows, this is a no-op (mutex provides synchronization)
+	// On Unix, uses flock for cross-process locking
 	lockTimeout := 5 * time.Second
-	done := make(chan error, 1)
-	go func() {
-		err := syscall.Flock(int(lockFile.Fd()), syscall.LOCK_EX)
-		done <- err
-	}()
-
-	select {
-	case err := <-done:
-		if err != nil {
-			return "", fmt.Errorf("failed to acquire IP allocation lock: %w", err)
-		}
-	case <-time.After(lockTimeout):
-		return "", fmt.Errorf("timeout acquiring IP allocation lock after %v", lockTimeout)
+	if err := acquireLockWithTimeout(lockFile, lockTimeout); err != nil {
+		return "", fmt.Errorf("failed to acquire IP allocation lock: %w", err)
 	}
 
 	// Ensure lock is released when function returns
-	defer syscall.Flock(int(lockFile.Fd()), syscall.LOCK_UN)
+	defer releaseLock(lockFile)
 
 	// Now safe to read config and find available IP
 	content, err := os.ReadFile(c.configPath)

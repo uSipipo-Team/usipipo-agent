@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.6.1] - 2026-04-02
+
+### 🐛 Bug Fixes
+
+**Windows Build Fix:**
+- ✅ Fix cross-platform file locking for Windows builds
+- ✅ Abstract file locking into platform-specific implementations
+- ✅ Add `wireguard_unix.go` with flock-based locking (Linux/macOS)
+- ✅ Add `wireguard_windows.go` with no-op locking (Windows uses mutex)
+- ✅ Update `wireguard.go` to use platform-agnostic lock functions
+
+**Build Compatibility:**
+- ✅ Fix build error: `undefined: syscall.Flock` on Windows
+- ✅ Enable multi-platform builds (linux/amd64, darwin/arm64, windows/amd64)
+
+### 🔧 Technical Details
+
+**Platform-Specific Implementations:**
+- Uses Go build tags (`//go:build linux || darwin`, `//go:build windows`)
+- Mutex in `WireGuardClient` provides in-process synchronization
+- File locking provides cross-process synchronization on Unix
+- Windows relies on mutex alone (sufficient for single-agent deployment)
+
+**Files Changed:**
+- `internal/vpn/wireguard.go` - Refactored to use platform-agnostic functions
+- `internal/vpn/wireguard_unix.go` - NEW: Unix file locking implementation
+- `internal/vpn/wireguard_windows.go` - NEW: Windows file locking stub
+
+### 📝 Related
+
+- Fixes release workflow failure for v0.6.0
+- Ensures all 6 platform builds pass in CI/CD
+
+---
+
 ## [0.6.0] - 2026-04-02
 
 ### ✨ Features
