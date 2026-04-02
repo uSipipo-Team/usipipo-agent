@@ -3,6 +3,7 @@ package api
 import (
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/uSipipo-Team/usipipo-agent/internal/metrics"
@@ -30,8 +31,23 @@ func SetWireGuardClient(client *vpn.WireGuardClient) {
 
 // HealthHandler returns server health status
 func HealthHandler(c *gin.Context) {
+	// Check if VPN clients are initialized
+	outlineStatus := "offline"
+	wireguardStatus := "offline"
+	
+	if outlineClient != nil {
+		outlineStatus = "online"
+	}
+	if wireguardClient != nil {
+		wireguardStatus = "online"
+	}
+	
 	c.JSON(http.StatusOK, gin.H{
-		"status": "healthy",
+		"status":          "healthy",
+		"agent_status":    "online",
+		"outline":         outlineStatus,
+		"wireguard":       wireguardStatus,
+		"timestamp":       time.Now().Unix(),
 	})
 }
 

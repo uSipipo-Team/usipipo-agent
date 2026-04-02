@@ -85,7 +85,8 @@ func (c *OutlineClient) CreateKey(ctx context.Context, name string) (*OutlineKey
 	}, nil
 }
 
-// DeleteKey deletes an Outline access key
+// DeleteKey deletes an Outline access key.
+// This operation is idempotent - returns success even if the key doesn't exist (404).
 func (c *OutlineClient) DeleteKey(ctx context.Context, keyID string) error {
 	resp, err := c.client.R().
 		SetContext(ctx).
@@ -95,8 +96,8 @@ func (c *OutlineClient) DeleteKey(ctx context.Context, keyID string) error {
 		return fmt.Errorf("failed to delete key: %w", err)
 	}
 
-	// 404 means already deleted
-	if resp.StatusCode() == 404 || resp.StatusCode() == 204 {
+	// 204 = deleted successfully, 404 = already deleted (idempotent behavior)
+	if resp.StatusCode() == 204 || resp.StatusCode() == 404 {
 		return nil
 	}
 
