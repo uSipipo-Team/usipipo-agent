@@ -7,6 +7,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.6.0] - 2026-04-02
+
+### ✨ Features
+
+**WireGuard Client Management:**
+- ✅ Add dynamic IP range configuration for WireGuard client allocation
+- ✅ Implement automatic IP assignment from configurable pool (WIREGUARD_START_IP to WIREGUARD_END_IP)
+- ✅ Add client status tracking (active/inactive) for better lifecycle management
+- ✅ Support WireGuard network CIDR configuration (e.g., 10.0.0.0/24)
+- ✅ Add validation for WireGuard IP range settings with fallback to defaults
+
+**Health Check Enhancement:**
+- ✅ Add VPN component status to health check endpoint (outline, wireguard)
+- ✅ Include agent status and timestamp in health response
+- ✅ Real-time VPN client initialization detection
+
+### 🔧 Improvements
+
+**Configuration:**
+- Enhanced config.go with WireGuard IP range parsing and validation
+- Added warning logs for invalid IP range configurations
+- Improved error handling for environment variable parsing
+
+**API Handlers:**
+- Health endpoint now returns detailed VPN subsystem status
+- Better observability for monitoring and alerting
+
+### 🧪 Testing
+
+**New Test Files:**
+- `internal/vpn/wireguard_race_test.go` - Race condition tests for WireGuard client operations
+
+### 📊 Technical Details
+
+- **Files Modified:** 5 (.env.example, handlers.go, config.go, outline.go, wireguard.go)
+- **Files Added:** 1 (wireguard_race_test.go)
+- **Lines Added:** ~477 lines
+- **Lines Changed:** ~55 lines
+
+### ⚙️ New Environment Variables
+
+- `WIREGUARD_NETWORK_CIDR` - WireGuard network CIDR (default: 10.0.0.0/24)
+- `WIREGUARD_START_IP` - Start of IP pool (default: 2, e.g., 10.0.0.2)
+- `WIREGUARD_END_IP` - End of IP pool (default: 254, e.g., 10.0.0.254)
+
+### 📝 Related
+
+- Improves upon v0.5.0 security remediation with enhanced WireGuard functionality
+- Part of ongoing VPN ecosystem development
+
+---
+
 ## [0.5.0] - 2026-03-31
 
 ### 🔒 Security Remediation - Phase 1 Complete
