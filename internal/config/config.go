@@ -12,20 +12,23 @@ import (
 
 // Config holds the agent configuration
 type Config struct {
-	Port               string
-	APIKey             string
-	BackendURL         string
-	ServerID           string
-	OutlineAPIURL      string
-	OutlineVerifySSL   bool
-	WireGuardInterface string
-	AgentURL           string
-	SupportsOutline    bool
-	SupportsWireGuard  bool
-	RateLimitEnabled   bool
-	RateLimitRPS       float64
-	RateLimitBurst     int
-	HTTPClientTimeout  time.Duration
+	Port                  string
+	APIKey                string
+	BackendURL            string
+	ServerID              string
+	OutlineAPIURL         string
+	OutlineVerifySSL      bool
+	WireGuardInterface    string
+	WireGuardNetworkCIDR  string
+	WireGuardStartIP      int
+	WireGuardEndIP        int
+	AgentURL              string
+	SupportsOutline       bool
+	SupportsWireGuard     bool
+	RateLimitEnabled      bool
+	RateLimitRPS          float64
+	RateLimitBurst        int
+	HTTPClientTimeout     time.Duration
 }
 
 // Load loads configuration from environment variables
@@ -34,7 +37,7 @@ func Load() *Config {
 	rps, _ := strconv.ParseFloat(getEnv("RATE_LIMIT_RPS", "10.0"), 64)
 	burst, _ := strconv.Atoi(getEnv("RATE_LIMIT_BURST", "20"))
 	enabled := getEnv("RATE_LIMIT_ENABLED", "true") == "true"
-	
+
 	// Parse HTTP client timeout
 	timeout, err := time.ParseDuration(getEnv("HTTP_CLIENT_TIMEOUT", "30s"))
 	if err != nil {
@@ -47,21 +50,35 @@ func Load() *Config {
 		timeout = 30 * time.Second
 	}
 
+	// Parse WireGuard IP range settings
+	startIP, _ := strconv.Atoi(getEnv("WIREGUARD_START_IP", "2"))
+	endIP, _ := strconv.Atoi(getEnv("WIREGUARD_END_IP", "254"))
+	
+	// Validate IP range, use defaults if invalid
+	if startIP < 2 || endIP > 254 || startIP >= endIP {
+		log.Printf("⚠️  WARNING: Invalid WIREGUARD IP range (start=%d, end=%d). Using defaults (2-254)", startIP, endIP)
+		startIP = 2
+		endIP = 254
+	}
+
 	cfg := &Config{
-		Port:               getEnv("AGENT_PORT", "8080"),
-		APIKey:             getEnv("AGENT_API_KEY", ""),
-		BackendURL:         getEnv("BACKEND_URL", ""),
-		ServerID:           getEnv("SERVER_ID", ""),
-		OutlineAPIURL:      getEnv("OUTLINE_API_URL", "http://localhost:8081"),
-		OutlineVerifySSL:   getEnv("OUTLINE_VERIFY_SSL", "true") == "true", // SECURE DEFAULT
-		WireGuardInterface: getEnv("WG_INTERFACE", "wg0"),
-		AgentURL:           getEnv("AGENT_URL", "http://localhost:8080"),
-		SupportsOutline:    getEnv("SUPPORTS_OUTLINE", "true") == "true",
-		SupportsWireGuard:  getEnv("SUPPORTS_WIREGUARD", "true") == "true",
-		RateLimitEnabled:   enabled,
-		RateLimitRPS:       rps,
-		RateLimitBurst:     burst,
-		HTTPClientTimeout:  timeout,
+		Port:                  getEnv("AGENT_PORT", "8080"),
+		APIKey:                getEnv("AGENT_API_KEY", ""),
+		BackendURL:            getEnv("BACKEND_URL", ""),
+		ServerID:              getEnv("SERVER_ID", ""),
+		OutlineAPIURL:         getEnv("OUTLINE_API_URL", "http://localhost:8081"),
+		OutlineVerifySSL:      getEnv("OUTLINE_VERIFY_SSL", "true") == "true", // SECURE DEFAULT
+		WireGuardInterface:    getEnv("WG_INTERFACE", "wg0"),
+		WireGuardNetworkCIDR:  getEnv("WIREGUARD_NETWORK_CIDR", "10.0.0.0/24"),
+		WireGuardStartIP:      startIP,
+		WireGuardEndIP:        endIP,
+		AgentURL:              getEnv("AGENT_URL", "http://localhost:8080"),
+		SupportsOutline:       getEnv("SUPPORTS_OUTLINE", "true") == "true",
+		SupportsWireGuard:     getEnv("SUPPORTS_WIREGUARD", "true") == "true",
+		RateLimitEnabled:      enabled,
+		RateLimitRPS:          rps,
+		RateLimitBurst:        burst,
+		HTTPClientTimeout:     timeout,
 	}
 	
 	// Log warning if TLS verification is disabled
