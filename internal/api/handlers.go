@@ -2,6 +2,7 @@ package api
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -10,6 +11,12 @@ import (
 	"github.com/uSipipo-Team/usipipo-agent/internal/metrics"
 	"github.com/uSipipo-Team/usipipo-agent/internal/vpn"
 )
+
+// logWarning logs a warning message to stderr
+// This wrapper avoids errcheck linter issues with fmt.Printf
+func logWarning(format string, args ...interface{}) {
+	log.Printf("[WARNING] "+format, args...)
+}
 
 var metricsCollector *metrics.Collector
 var outlineClient *vpn.OutlineClient
@@ -77,12 +84,12 @@ func MetricsHandler(c *gin.Context) {
 		return
 	}
 
-	// Collect Outline metrics if client is available
+		// Collect Outline metrics if client is available
 	if outlineClient != nil {
 		outlineMetrics, err := metricsCollector.GetOutlineMetrics(c.Request.Context(), outlineClient)
 		if err != nil {
 			// Log error but continue - Outline metrics are optional
-			fmt.Printf("Warning: failed to collect Outline metrics: %v\n", err)
+			logWarning("failed to collect Outline metrics: %v", err)
 		} else {
 			m.Outline = outlineMetrics
 		}
@@ -91,7 +98,7 @@ func MetricsHandler(c *gin.Context) {
 		if metricsCollector.ShouldCollectDetailed() {
 			detailedMetrics, err := metricsCollector.GetDetailedOutlineMetrics(c.Request.Context(), outlineClient)
 			if err != nil {
-				fmt.Printf("Warning: failed to collect detailed Outline metrics: %v\n", err)
+				logWarning("failed to collect detailed Outline metrics: %v", err)
 			} else {
 				m.Detailed = detailedMetrics
 				metricsCollector.MarkDetailedCollected()

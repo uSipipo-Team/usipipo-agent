@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 
 	"github.com/go-resty/resty/v2"
@@ -117,7 +118,7 @@ func (c *OutlineClient) CreateKey(ctx context.Context, name string) (*OutlineKey
 
 	if err != nil {
 		// Non-fatal, log warning
-		fmt.Printf("Warning: failed to rename key: %v\n", err)
+		log.Printf("[WARNING] failed to rename key: %v\n", err)
 	}
 
 	return &OutlineKey{
