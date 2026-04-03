@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -59,7 +60,7 @@ func StatusHandler(c *gin.Context) {
 	})
 }
 
-// MetricsHandler returns detailed system metrics
+// MetricsHandler returns detailed system metrics including Outline
 func MetricsHandler(c *gin.Context) {
 	if metricsCollector == nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -74,6 +75,28 @@ func MetricsHandler(c *gin.Context) {
 			"error": err.Error(),
 		})
 		return
+	}
+
+	// Collect Outline metrics if client is available
+	if outlineClient != nil {
+		outlineMetrics, err := metricsCollector.GetOutlineMetrics(c.Request.Context(), outlineClient)
+		if err != nil {
+			// Log error but continue - Outline metrics are optional
+			fmt.Printf("Warning: failed to collect Outline metrics: %v\n", err)
+		} else {
+			m.Outline = outlineMetrics
+		}
+
+		// Collect detailed metrics if interval > 1 hour
+		if metricsCollector.ShouldCollectDetailed() {
+			detailedMetrics, err := metricsCollector.GetDetailedOutlineMetrics(c.Request.Context(), outlineClient)
+			if err != nil {
+				fmt.Printf("Warning: failed to collect detailed Outline metrics: %v\n", err)
+			} else {
+				m.Detailed = detailedMetrics
+				metricsCollector.MarkDetailedCollected()
+			}
+		}
 	}
 
 	c.JSON(http.StatusOK, m)
