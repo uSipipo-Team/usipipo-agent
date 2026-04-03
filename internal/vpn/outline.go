@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"net/http"
 
 	"github.com/go-resty/resty/v2"
 )
@@ -22,6 +23,16 @@ type OutlineKey struct {
 	AccessURL string `json:"access_url"`
 	Port      int    `json:"port"`
 	Method    string `json:"method"`
+}
+
+// OutlineServerInfo represents server information from GET /server
+type OutlineServerInfo struct {
+	Name                 string `json:"name"`
+	ServerID             string `json:"serverId"`
+	MetricsEnabled       bool   `json:"metricsEnabled"`
+	Version              string `json:"version"`
+	PortForNewAccessKeys int    `json:"portForNewAccessKeys"`
+	HostnameForAccessKeys string `json:"hostnameForAccessKeys"`
 }
 
 // NewOutlineClient creates a new Outline API client
@@ -208,4 +219,26 @@ func (c *OutlineClient) GetTotalBytesTransferred(ctx context.Context) (uint64, e
 	}
 
 	return total, nil
+}
+
+// CheckStatus verifies Outline API connectivity and returns server info
+func (c *OutlineClient) CheckStatus(ctx context.Context) (*OutlineServerInfo, error) {
+	resp, err := c.client.R().
+		SetContext(ctx).
+		Get(c.apiURL + "/server")
+
+	if err != nil {
+		return nil, fmt.Errorf("Outline API unreachable: %w", err)
+	}
+
+	if resp.StatusCode() != http.StatusOK {
+		return nil, fmt.Errorf("Outline API returned unexpected status: %d", resp.StatusCode())
+	}
+
+	var info OutlineServerInfo
+	if err := json.Unmarshal(resp.Body(), &info); err != nil {
+		return nil, fmt.Errorf("failed to parse server info: %w", err)
+	}
+
+	return &info, nil
 }
