@@ -17,21 +17,21 @@ func TestCollector_GetOutlineMetrics_Success(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/server":
-			json.NewEncoder(w).Encode(map[string]interface{}{
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
 				"name":           "Test Server",
 				"serverId":       "test-uuid",
 				"version":        "1.10.0",
 				"metricsEnabled": true,
 			})
 		case "/access-keys":
-			json.NewEncoder(w).Encode(map[string]interface{}{
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
 				"accessKeys": []interface{}{
 					map[string]interface{}{"id": "1"},
 					map[string]interface{}{"id": "2"},
 				},
 			})
 		case "/metrics/transfer":
-			json.NewEncoder(w).Encode(map[string]interface{}{
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
 				"bytesTransferredByUserId": map[string]interface{}{
 					"1": float64(5242880000),
 					"2": float64(10485760000),
@@ -64,16 +64,16 @@ func TestCollector_GetOutlineMetrics_Caching(t *testing.T) {
 		callCount++
 		switch r.URL.Path {
 		case "/server":
-			json.NewEncoder(w).Encode(map[string]interface{}{
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
 				"name":    "Test",
 				"version": "1.0.0",
 			})
 		case "/access-keys":
-			json.NewEncoder(w).Encode(map[string]interface{}{
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
 				"accessKeys": []interface{}{},
 			})
 		case "/metrics/transfer":
-			json.NewEncoder(w).Encode(map[string]interface{}{
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
 				"bytesTransferredByUserId": map[string]interface{}{},
 			})
 		default:
@@ -145,18 +145,18 @@ func TestCollector_GetOutlineMetrics_ErrorRecovery(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/server":
-			json.NewEncoder(w).Encode(map[string]interface{}{
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
 				"name":    "Recovered Server",
 				"version": "1.5.0",
 			})
 		case "/access-keys":
-			json.NewEncoder(w).Encode(map[string]interface{}{
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
 				"accessKeys": []interface{}{
 					map[string]interface{}{"id": "1"},
 				},
 			})
 		case "/metrics/transfer":
-			json.NewEncoder(w).Encode(map[string]interface{}{
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
 				"bytesTransferredByUserId": map[string]interface{}{
 					"1": float64(1048576),
 				},
@@ -198,12 +198,12 @@ func TestCollector_GetOutlineMetrics_PartialFailure(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/server":
-			json.NewEncoder(w).Encode(map[string]interface{}{
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
 				"name":    "Partial Server",
 				"version": "1.2.0",
 			})
 		case "/access-keys":
-			json.NewEncoder(w).Encode(map[string]interface{}{
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{
 				"accessKeys": []interface{}{
 					map[string]interface{}{"id": "1"},
 					map[string]interface{}{"id": "2"},
