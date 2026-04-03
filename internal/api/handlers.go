@@ -82,7 +82,7 @@ func MetricsHandler(c *gin.Context) {
 		outlineMetrics, err := metricsCollector.GetOutlineMetrics(c.Request.Context(), outlineClient)
 		if err != nil {
 			// Log error but continue - Outline metrics are optional
-			fmt.Printf("Warning: failed to collect Outline metrics: %v\n", err)
+			_ = fmt.Printf("Warning: failed to collect Outline metrics: %v\n", err)
 		} else {
 			m.Outline = outlineMetrics
 		}
@@ -91,7 +91,7 @@ func MetricsHandler(c *gin.Context) {
 		if metricsCollector.ShouldCollectDetailed() {
 			detailedMetrics, err := metricsCollector.GetDetailedOutlineMetrics(c.Request.Context(), outlineClient)
 			if err != nil {
-				fmt.Printf("Warning: failed to collect detailed Outline metrics: %v\n", err)
+				_ = fmt.Printf("Warning: failed to collect detailed Outline metrics: %v\n", err)
 			} else {
 				m.Detailed = detailedMetrics
 				metricsCollector.MarkDetailedCollected()

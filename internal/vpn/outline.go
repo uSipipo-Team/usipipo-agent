@@ -117,7 +117,7 @@ func (c *OutlineClient) CreateKey(ctx context.Context, name string) (*OutlineKey
 
 	if err != nil {
 		// Non-fatal, log warning
-		fmt.Printf("Warning: failed to rename key: %v\n", err)
+		_ = fmt.Printf("Warning: failed to rename key: %v\n", err)
 	}
 
 	return &OutlineKey{
