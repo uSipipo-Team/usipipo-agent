@@ -24,7 +24,7 @@ func acquireLockWithTimeout(lockFile *os.File, timeout time.Duration) error {
 	// Windows file locking is handled differently
 	// The mutex in WireGuardClient provides sufficient synchronization
 	// Just close the lock file as it's not needed on Windows
-	lockFile.Close()
+	_ = lockFile.Close()
 	return nil
 }
 

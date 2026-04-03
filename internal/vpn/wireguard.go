@@ -289,7 +289,7 @@ func (c *WireGuardClient) getNextAvailableIP() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to open lock file: %w", err)
 	}
-	defer lockFile.Close()
+	defer func() { _ = lockFile.Close() }()
 
 	// Acquire exclusive lock with timeout (5 seconds)
 	// On Windows, this is a no-op (mutex provides synchronization)
