@@ -1,0 +1,16 @@
+linters:
+  enable:
+    - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+
+linters-settings:
+  errcheck:
+    exclude-functions:
+      - fmt.Printf
+      - fmt.Println
+      - fmt.Print
+      - (*github.com/gin-gonic/gin.Context).JSON
