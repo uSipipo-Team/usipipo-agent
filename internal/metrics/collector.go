@@ -119,8 +119,11 @@ func (c *Collector) GetOutlineMetrics(ctx context.Context, outlineClient *vpn.Ou
 		metrics.OutlineAPIReachable = false
 		metrics.LastError = err.Error()
 		metrics.ServerStatus = "error"
+		// Increment consecutive failures (start at 1 for first failure)
 		if c.outlineCache != nil {
 			metrics.ConsecutiveFailures = c.outlineCache.ConsecutiveFailures + 1
+		} else {
+			metrics.ConsecutiveFailures = 1
 		}
 		// Cache error state for shorter period (1 min)
 		c.outlineCache = metrics
