@@ -85,15 +85,15 @@ func TestCollector_GetOutlineMetrics_Caching(t *testing.T) {
 	collector := NewCollector("test-server-id")
 	outlineClient := vpn.NewOutlineClient(server.URL, false)
 
-	// First call
+	// First call - should hit API 3 times (server, access-keys, transfer)
 	_, err := collector.GetOutlineMetrics(context.Background(), outlineClient)
 	assert.NoError(t, err)
-	assert.Equal(t, 1, callCount)
+	assert.Equal(t, 3, callCount)
 
-	// Second call (should use cache)
+	// Second call (should use cache, no additional API calls)
 	_, err = collector.GetOutlineMetrics(context.Background(), outlineClient)
 	assert.NoError(t, err)
-	assert.Equal(t, 1, callCount) // Still 1, not 2
+	assert.Equal(t, 3, callCount) // Still 3, not 6
 }
 
 func TestCollector_GetOutlineMetrics_ErrorState(t *testing.T) {
