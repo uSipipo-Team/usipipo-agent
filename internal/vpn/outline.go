@@ -27,12 +27,17 @@ type OutlineKey struct {
 
 // OutlineServerInfo represents server information from GET /server
 type OutlineServerInfo struct {
-	Name                 string `json:"name"`
-	ServerID             string `json:"serverId"`
-	MetricsEnabled       bool   `json:"metricsEnabled"`
-	Version              string `json:"version"`
-	PortForNewAccessKeys int    `json:"portForNewAccessKeys"`
+	Name                  string `json:"name"`
+	ServerID              string `json:"serverId"`
+	MetricsEnabled        bool   `json:"metricsEnabled"`
+	Version               string `json:"version"`
+	PortForNewAccessKeys  int    `json:"portForNewAccessKeys"`
 	HostnameForAccessKeys string `json:"hostnameForAccessKeys"`
+}
+
+// OutlineTransferMetrics represents bandwidth usage per key (last 30 days)
+type OutlineTransferMetrics struct {
+	BytesTransferredByUserID map[string]uint64 `json:"bytesTransferredByUserId"`
 }
 
 // NewOutlineClient creates a new Outline API client
@@ -241,4 +246,26 @@ func (c *OutlineClient) CheckStatus(ctx context.Context) (*OutlineServerInfo, er
 	}
 
 	return &info, nil
+}
+
+// GetTransferMetrics retrieves bandwidth usage per key (last 30 days)
+func (c *OutlineClient) GetTransferMetrics(ctx context.Context) (*OutlineTransferMetrics, error) {
+	resp, err := c.client.R().
+		SetContext(ctx).
+		Get(c.apiURL + "/metrics/transfer")
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to get transfer metrics: %w", err)
+	}
+
+	if resp.StatusCode() != http.StatusOK {
+		return nil, fmt.Errorf("unexpected status: %d", resp.StatusCode())
+	}
+
+	var metrics OutlineTransferMetrics
+	if err := json.Unmarshal(resp.Body(), &metrics); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &metrics, nil
 }

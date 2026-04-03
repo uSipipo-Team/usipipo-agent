@@ -55,3 +55,43 @@ func TestOutlineClient_CheckStatus_NetworkError(t *testing.T) {
 
 	assert.Error(t, err)
 }
+
+func TestOutlineClient_GetTransferMetrics_Success(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/metrics/transfer", r.URL.Path)
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"bytesTransferredByUserId": map[string]interface{}{
+				"1": float64(5242880000),
+				"2": float64(10485760000),
+				"3": float64(2621440000),
+			},
+		})
+	}))
+	defer server.Close()
+
+	client := NewOutlineClient(server.URL, false)
+	metrics, err := client.GetTransferMetrics(context.Background())
+
+	assert.NoError(t, err)
+	assert.Equal(t, uint64(5242880000), metrics.BytesTransferredByUserID["1"])
+	assert.Equal(t, uint64(10485760000), metrics.BytesTransferredByUserID["2"])
+	assert.Equal(t, uint64(2621440000), metrics.BytesTransferredByUserID["3"])
+	assert.Equal(t, 3, len(metrics.BytesTransferredByUserID))
+}
+
+func TestOutlineClient_GetTransferMetrics_Empty(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"bytesTransferredByUserId": map[string]interface{}{},
+		})
+	}))
+	defer server.Close()
+
+	client := NewOutlineClient(server.URL, false)
+	metrics, err := client.GetTransferMetrics(context.Background())
+
+	assert.NoError(t, err)
+	assert.Equal(t, 0, len(metrics.BytesTransferredByUserID))
+}
