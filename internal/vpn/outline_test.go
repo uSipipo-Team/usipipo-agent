@@ -15,7 +15,7 @@ func TestOutlineClient_CheckStatus_Success(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/server", r.URL.Path)
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"name":           "Test Server",
 			"serverId":       "test-uuid-123",
 			"metricsEnabled": true,
@@ -60,7 +60,7 @@ func TestOutlineClient_GetTransferMetrics_Success(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/metrics/transfer", r.URL.Path)
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"bytesTransferredByUserId": map[string]interface{}{
 				"1": float64(5242880000),
 				"2": float64(10485760000),
@@ -83,7 +83,7 @@ func TestOutlineClient_GetTransferMetrics_Success(t *testing.T) {
 func TestOutlineClient_GetTransferMetrics_Empty(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"bytesTransferredByUserId": map[string]interface{}{},
 		})
 	}))
@@ -101,7 +101,7 @@ func TestOutlineClient_GetDetailedMetrics_Success(t *testing.T) {
 		assert.Equal(t, "/experimental/server/metrics", r.URL.Path)
 		assert.Equal(t, "since=24h", r.URL.RawQuery)
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(map[string]interface{}{
+		_ = json.NewEncoder(w).Encode(map[string]interface{}{
 			"status": "success",
 			"data": map[string]interface{}{
 				"resultType": "matrix",
