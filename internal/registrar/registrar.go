@@ -3,6 +3,7 @@ package registrar
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"runtime"
 	"strings"
@@ -109,7 +110,7 @@ func (r *Registrar) RegisterOrGetServerID() (string, error) {
 	// Save server ID to .env
 	if err := saveServerIDToEnv(result.ServerID); err != nil {
 		// Log but don't fail - agent can still function
-		fmt.Printf("Warning: Could not save SERVER_ID to .env: %v\n", err)
+		log.Printf("Warning: Could not save SERVER_ID to .env: %v", err)
 	}
 
 	return result.ServerID, nil
