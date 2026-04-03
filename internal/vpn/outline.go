@@ -40,6 +40,27 @@ type OutlineTransferMetrics struct {
 	BytesTransferredByUserID map[string]uint64 `json:"bytesTransferredByUserId"`
 }
 
+// OutlineDetailedMetrics represents time-series metrics from Prometheus
+type OutlineDetailedMetrics struct {
+	Status string      `json:"status"`
+	Data   MetricsData `json:"data"`
+}
+
+type MetricsData struct {
+	ResultType string         `json:"resultType"`
+	Result     []MetricResult `json:"result"`
+}
+
+type MetricResult struct {
+	Metric MetricInfo      `json:"metric"`
+	Values [][]interface{} `json:"values"` // [timestamp, value]
+}
+
+type MetricInfo struct {
+	AccessKey string `json:"access_key"`
+	Name      string `json:"__name__"`
+}
+
 // NewOutlineClient creates a new Outline API client
 func NewOutlineClient(apiURL string, insecureSkipVerify bool) *OutlineClient {
 	client := resty.New()
@@ -263,6 +284,30 @@ func (c *OutlineClient) GetTransferMetrics(ctx context.Context) (*OutlineTransfe
 	}
 
 	var metrics OutlineTransferMetrics
+	if err := json.Unmarshal(resp.Body(), &metrics); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &metrics, nil
+}
+
+// GetDetailedMetrics retrieves time-series metrics for specified period
+// Supported since values: 1h, 24h, 7d, 30d
+func (c *OutlineClient) GetDetailedMetrics(ctx context.Context, since string) (*OutlineDetailedMetrics, error) {
+	resp, err := c.client.R().
+		SetContext(ctx).
+		SetQueryParam("since", since).
+		Get(c.apiURL + "/experimental/server/metrics")
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to get detailed metrics: %w", err)
+	}
+
+	if resp.StatusCode() != http.StatusOK {
+		return nil, fmt.Errorf("unexpected status: %d", resp.StatusCode())
+	}
+
+	var metrics OutlineDetailedMetrics
 	if err := json.Unmarshal(resp.Body(), &metrics); err != nil {
 		return nil, fmt.Errorf("failed to parse response: %w", err)
 	}

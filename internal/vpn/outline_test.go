@@ -95,3 +95,53 @@ func TestOutlineClient_GetTransferMetrics_Empty(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 0, len(metrics.BytesTransferredByUserID))
 }
+
+func TestOutlineClient_GetDetailedMetrics_Success(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/experimental/server/metrics", r.URL.Path)
+		assert.Equal(t, "since=24h", r.URL.RawQuery)
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"status": "success",
+			"data": map[string]interface{}{
+				"resultType": "matrix",
+				"result": []interface{}{
+					map[string]interface{}{
+						"metric": map[string]interface{}{
+							"access_key": "1",
+							"__name__":   "shadowsocks_data_bytes",
+						},
+						"values": []interface{}{
+							[]interface{}{float64(1704672000), "5242880"},
+							[]interface{}{float64(1704675600), "10485760"},
+						},
+					},
+				},
+			},
+		})
+	}))
+	defer server.Close()
+
+	client := NewOutlineClient(server.URL, false)
+	metrics, err := client.GetDetailedMetrics(context.Background(), "24h")
+
+	assert.NoError(t, err)
+	assert.Equal(t, "success", metrics.Status)
+	assert.Equal(t, "matrix", metrics.Data.ResultType)
+	assert.Equal(t, 1, len(metrics.Data.Result))
+	assert.Equal(t, "1", metrics.Data.Result[0].Metric.AccessKey)
+	assert.Equal(t, 2, len(metrics.Data.Result[0].Values))
+}
+
+func TestOutlineClient_GetDetailedMetrics_InvalidSince(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+	}))
+	defer server.Close()
+
+	client := NewOutlineClient(server.URL, false)
+	_, err := client.GetDetailedMetrics(context.Background(), "invalid")
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "unexpected status")
+}
