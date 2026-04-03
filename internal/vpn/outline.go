@@ -64,11 +64,18 @@ type MetricInfo struct {
 // NewOutlineClient creates a new Outline API client
 func NewOutlineClient(apiURL string, insecureSkipVerify bool) *OutlineClient {
 	client := resty.New()
-	
-	// Configure TLS for self-signed certificates
-	if insecureSkipVerify {
-		client.SetTLSClientConfig(&tls.Config{InsecureSkipVerify: true})
+
+	// Configure TLS with secure defaults
+	tlsConfig := &tls.Config{
+		MinVersion: tls.VersionTLS12, // Enforce TLS 1.2 minimum
 	}
+
+	// Allow insecure skip verify for self-signed certificates (development/testing)
+	if insecureSkipVerify {
+		tlsConfig.InsecureSkipVerify = true
+	}
+
+	client.SetTLSClientConfig(tlsConfig)
 	
 	return &OutlineClient{
 		apiURL: apiURL,
