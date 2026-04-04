@@ -59,7 +59,7 @@ func NewWireGuardClient(interfaceName, configPath, serverIP string, serverPort i
 }
 
 // readNetworkConfig parses the wg0.conf Address field to extract the network CIDR and IP range.
-// Returns the network CIDR, start IP (first host), and end IP (last host).
+// Returns the network CIDR, start IP (first client IP after server), and end IP (last host).
 func readNetworkConfig(configPath string) (string, int, int, error) {
 	content, err := os.ReadFile(configPath)
 	if err != nil {
@@ -67,35 +67,27 @@ func readNetworkConfig(configPath string) (string, int, int, error) {
 	}
 
 	// Match Address line, e.g. "Address = 10.88.88.1/24" or "Address = 10.88.88.1/24,fd42:42:42::1/64"
-	addrPattern := regexp.MustCompile(`Address\s*=\s*([\d.]+/(\d+))`)
+	addrPattern := regexp.MustCompile(`Address\s*=\s*([\d.]+)/(\d+)`)
 	matches := addrPattern.FindStringSubmatch(string(content))
 	if len(matches) < 3 {
 		return "", 0, 0, fmt.Errorf("no Address found in config")
 	}
 
-	cidr := matches[1]
+	serverIP := matches[1]
 	prefixLen, _ := strconv.Atoi(matches[2])
 
-	// Parse network to get the base address
-	_, ipNet, err := net.ParseCIDR(cidr)
-	if err != nil {
-		return "", 0, 0, fmt.Errorf("invalid CIDR %s: %w", cidr, err)
-	}
-
-	// Calculate IP range from network address
-	ip := ipNet.IP.To4()
+	// Parse the server IP directly (don't use ParseCIDR - it normalizes to network address)
+	ip := net.ParseIP(serverIP).To4()
 	if ip == nil {
-		return "", 0, 0, fmt.Errorf("not an IPv4 address")
+		return "", 0, 0, fmt.Errorf("invalid IP address: %s", serverIP)
 	}
 
-	// For /24 network, hosts are .1 to .254, we skip .0 (network) and use .2-.254 for clients
-	// Start at .2 (skip .1 which is the server), end at .254
-	baseIP := ip[3]
-	startIP := int(baseIP) + 1 // Skip server IP (.1)
-	endIP := 254
-
-	// Reconstruct CIDR string
+	// Reconstruct network CIDR string
 	networkCIDR := fmt.Sprintf("%d.%d.%d.%d/%d", ip[0], ip[1], ip[2], ip[3], prefixLen)
+
+	// Start at server IP + 1 (skip server's own IP), end at .254
+	startIP := int(ip[3]) + 1
+	endIP := 254
 
 	return networkCIDR, startIP, endIP, nil
 }
