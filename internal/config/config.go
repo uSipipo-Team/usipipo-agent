@@ -19,6 +19,8 @@ type Config struct {
 	OutlineAPIURL         string
 	OutlineVerifySSL      bool
 	WireGuardInterface    string
+	WireGuardServerIP     string
+	WireGuardServerPort   int
 	WireGuardNetworkCIDR  string
 	WireGuardStartIP      int
 	WireGuardEndIP        int
@@ -53,12 +55,19 @@ func Load() *Config {
 	// Parse WireGuard IP range settings
 	startIP, _ := strconv.Atoi(getEnv("WIREGUARD_START_IP", "2"))
 	endIP, _ := strconv.Atoi(getEnv("WIREGUARD_END_IP", "254"))
-	
+
 	// Validate IP range, use defaults if invalid
 	if startIP < 2 || endIP > 254 || startIP >= endIP {
 		log.Printf("⚠️  WARNING: Invalid WIREGUARD IP range (start=%d, end=%d). Using defaults (2-254)", startIP, endIP)
 		startIP = 2
 		endIP = 254
+	}
+
+	// Parse WireGuard server port
+	wgPort, err := strconv.Atoi(getEnv("WG_SERVER_PORT", "64465"))
+	if err != nil || wgPort < 1 || wgPort > 65535 {
+		log.Printf("⚠️  WARNING: Invalid WG_SERVER_PORT '%s'. Using default 64465", getEnv("WG_SERVER_PORT", "64465"))
+		wgPort = 64465
 	}
 
 	cfg := &Config{
@@ -69,7 +78,9 @@ func Load() *Config {
 		OutlineAPIURL:         getEnv("OUTLINE_API_URL", "http://localhost:8081"),
 		OutlineVerifySSL:      getEnv("OUTLINE_VERIFY_SSL", "true") == "true", // SECURE DEFAULT
 		WireGuardInterface:    getEnv("WG_INTERFACE", "wg0"),
-		WireGuardNetworkCIDR:  getEnv("WIREGUARD_NETWORK_CIDR", "10.0.0.0/24"),
+		WireGuardServerIP:     getEnv("WG_SERVER_IP", "165.140.241.96"),
+		WireGuardServerPort:   wgPort,
+		WireGuardNetworkCIDR:  getEnv("WIREGUARD_NETWORK_CIDR", "10.88.88.0/24"),
 		WireGuardStartIP:      startIP,
 		WireGuardEndIP:        endIP,
 		AgentURL:              getEnv("AGENT_URL", "http://localhost:8080"),
