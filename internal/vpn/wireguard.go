@@ -43,9 +43,60 @@ type WireGuardPeer struct {
 	Config    string `json:"config"`
 }
 
-// NewWireGuardClient creates a new WireGuard client using wgctrl
+// NewWireGuardClient creates a new WireGuard client using wgctrl.
+// Reads the server network CIDR from the wg0.conf Address field.
 func NewWireGuardClient(interfaceName, configPath, serverIP string, serverPort int, clientDNS string) (*WireGuardClient, error) {
-	return NewWireGuardClientWithRange(interfaceName, configPath, serverIP, serverPort, clientDNS, "10.0.0.0/24", 2, 254)
+	// Read network CIDR from wg0.conf Address field
+	networkCIDR, startIP, endIP, err := readNetworkConfig(configPath)
+	if err != nil {
+		// Fallback to defaults if config can't be read
+		networkCIDR = "10.88.88.0/24"
+		startIP = 2
+		endIP = 254
+	}
+	return NewWireGuardClientWithRange(interfaceName, configPath, serverIP, serverPort, clientDNS, networkCIDR, startIP, endIP)
+}
+
+// readNetworkConfig parses the wg0.conf Address field to extract the network CIDR and IP range.
+// Returns the network CIDR, start IP (first host), and end IP (last host).
+func readNetworkConfig(configPath string) (string, int, int, error) {
+	content, err := os.ReadFile(configPath)
+	if err != nil {
+		return "", 0, 0, err
+	}
+
+	// Match Address line, e.g. "Address = 10.88.88.1/24" or "Address = 10.88.88.1/24,fd42:42:42::1/64"
+	addrPattern := regexp.MustCompile(`Address\s*=\s*([\d.]+/(\d+))`)
+	matches := addrPattern.FindStringSubmatch(string(content))
+	if len(matches) < 3 {
+		return "", 0, 0, fmt.Errorf("no Address found in config")
+	}
+
+	cidr := matches[1]
+	prefixLen, _ := strconv.Atoi(matches[2])
+
+	// Parse network to get the base address
+	_, ipNet, err := net.ParseCIDR(cidr)
+	if err != nil {
+		return "", 0, 0, fmt.Errorf("invalid CIDR %s: %w", cidr, err)
+	}
+
+	// Calculate IP range from network address
+	ip := ipNet.IP.To4()
+	if ip == nil {
+		return "", 0, 0, fmt.Errorf("not an IPv4 address")
+	}
+
+	// For /24 network, hosts are .1 to .254, we skip .0 (network) and use .2-.254 for clients
+	// Start at .2 (skip .1 which is the server), end at .254
+	baseIP := ip[3]
+	startIP := int(baseIP) + 1 // Skip server IP (.1)
+	endIP := 254
+
+	// Reconstruct CIDR string
+	networkCIDR := fmt.Sprintf("%d.%d.%d.%d/%d", ip[0], ip[1], ip[2], ip[3], prefixLen)
+
+	return networkCIDR, startIP, endIP, nil
 }
 
 // NewWireGuardClientWithRange creates a new WireGuard client with custom IP range
@@ -307,7 +358,7 @@ func (c *WireGuardClient) getNextAvailableIP() (string, error) {
 	if err != nil {
 		// If config doesn't exist, return first IP in range
 		if os.IsNotExist(err) {
-			return fmt.Sprintf("10.0.0.%d", c.startIP), nil
+			return c.buildIP(c.startIP), nil
 		}
 		return "", fmt.Errorf("failed to read config file: %w", err)
 	}
@@ -323,13 +374,27 @@ func (c *WireGuardClient) getNextAvailableIP() (string, error) {
 
 	// Find first available IP in configured range
 	for i := c.startIP; i <= c.endIP; i++ {
-		ip := fmt.Sprintf("10.0.0.%d", i)
+		ip := c.buildIP(i)
 		if !usedIPs[ip] {
 			return ip, nil
 		}
 	}
 
 	return "", fmt.Errorf("no available IPs in range %d-%d", c.startIP, c.endIP)
+}
+
+func (c *WireGuardClient) buildIP(lastOctet int) string {
+	// Parse network CIDR to get base IP
+	_, ipNet, err := net.ParseCIDR(c.networkCIDR)
+	if err != nil {
+		// Fallback
+		return fmt.Sprintf("10.88.88.%d", lastOctet)
+	}
+	base := ipNet.IP.To4()
+	if base == nil {
+		return fmt.Sprintf("10.88.88.%d", lastOctet)
+	}
+	return fmt.Sprintf("%d.%d.%d.%d", base[0], base[1], base[2], lastOctet)
 }
 
 func (c *WireGuardClient) findPeerPublicKey(name string) (string, error) {

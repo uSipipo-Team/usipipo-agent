@@ -41,7 +41,7 @@ func main() {
 	log.Printf("Server ID: %s", cfg.ServerID)
 	log.Printf("Backend URL: %s", cfg.BackendURL)
 	log.Printf("Outline API URL: %s", cfg.OutlineAPIURL)
-	log.Printf("WireGuard Interface: %s", cfg.WireGuardInterface)
+	log.Printf("WireGuard Interface: %s (%s:%d)", cfg.WireGuardInterface, cfg.WireGuardServerIP, cfg.WireGuardServerPort)
 	log.Printf("Rate Limiting: enabled=%v, rps=%.1f, burst=%d", 
 		cfg.RateLimitEnabled, cfg.RateLimitRPS, cfg.RateLimitBurst)
 
@@ -57,9 +57,9 @@ func main() {
 	wireguardClient, err := vpn.NewWireGuardClient(
 		cfg.WireGuardInterface,
 		"/etc/wireguard/wg0.conf",
-		cfg.ServerID, // Will be replaced with actual server IP
-		51820,        // Default WireGuard port
-		"1.1.1.1",    // Cloudflare DNS
+		cfg.WireGuardServerIP,   // Public IP for client endpoint
+		cfg.WireGuardServerPort, // Port from WG_SERVER_PORT
+		"1.1.1.1",               // Cloudflare DNS
 	)
 	if err != nil {
 		log.Printf("Warning: WireGuard client initialization failed: %v", err)
