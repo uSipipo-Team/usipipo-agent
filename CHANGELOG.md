@@ -7,6 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.8.1] - 2026-04-05
+
+### 🐛 Bug Fixes
+
+**WireGuard Metrics Type Cast:**
+- ✅ Fix build error: cannot use `peer.ReceiveBytes` (int64) as uint64
+- ✅ Add explicit uint64 cast for `peer.ReceiveBytes` and `peer.TransmitBytes`
+
+### 🔧 Technical Details
+
+**Files Changed:**
+- `internal/vpn/wireguard_metrics.go` - Cast int64 to uint64 for byte counters
+
+---
+
+## [0.8.0] - 2026-04-05
+
+### ✨ Added
+
+**WireGuard Metrics Collector:**
+- ✅ New `WireGuardMetricsCollector` using wgctrl library
+- ✅ `GetPeerMetrics()` - collects all peer stats (count, bytes rx/tx, last handshake, connection status)
+- ✅ `GetPeerByPublicKey()` - finds specific peer by public key
+- ✅ Connection detection: handshake within 5 minutes = connected
+- ✅ Integration into agent metrics collection pipeline
+- ✅ Unit tests for WireGuard metrics collector
+
+### 🔧 Technical Details
+
+**Files Created:**
+- `internal/vpn/wireguard_metrics.go` (96 lines)
+- `internal/vpn/wireguard_metrics_test.go` (60 lines)
+
+**Files Modified:**
+- `internal/metrics/collector.go` - Added `wgCollector` field, `SetWireGuardCollector()`, `GetWireGuardMetrics()`
+- `cmd/agent/main.go` - Initialize WireGuard metrics collector
+
+**Lines Added:** 221 lines
+
+---
+
 ## [0.6.1] - 2026-04-02
 
 ### 🐛 Bug Fixes
