@@ -7,6 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.10.0] - 2026-04-05
+
+### ✨ Added
+
+**Hybrid Rate Limiting (PR #58):**
+- ✅ `HybridRateLimiter` - IP-based + API key-based rate limiting using `golang.org/x/time/rate`
+- ✅ IP-based limiting: 5 RPS general, 3 RPS auth endpoints, configurable burst
+- ✅ Per-key limiting: 100 RPS per valid API key
+- ✅ Auth failure protection: Lockout after 10 failed attempts with exponential backoff (1s → 30s cap)
+- ✅ Failure window: 5-minute sliding window for counting failures
+- ✅ Automatic cleanup: Periodic cleanup of inactive entries (1m interval, 3m TTL) to prevent memory leaks
+- ✅ Response headers: `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`, `Retry-After`
+- ✅ Constant-time API key comparison via `SecureCompareAPIKeys()`
+
+**Security Logging (PR #59):**
+- ✅ `SecurityLogger` - Structured JSON logger for security events
+- ✅ Event types: `auth_failure`, `rate_limit_exceeded`, `startup`, `shutdown`, `config_change`
+- ✅ Log levels: INFO, WARN, ERROR (configurable via `LOG_LEVEL`)
+- ✅ Log sanitization: API key masking (`agen...p6q7`), bearer token removal, header filtering
+- ✅ Recursive sanitization for maps, slices, strings
+- ✅ Sensitive header exclusion: `Authorization`, `X-API-Key`, `Cookie`, `Set-Cookie`
+- ✅ Startup/shutdown logging with version and uptime tracking
+- ✅ 281 lines of comprehensive tests
+
+### 🔧 Technical
+
+**Files Added:**
+- `internal/api/ratelimit.go` (341 lines) - Core rate limiter
+- `internal/logging/security.go` (183 lines) - Security logger
+- `internal/logging/sanitizer.go` (137 lines) - Log sanitization
+- `internal/logging/types.go` (49 lines) - Event types, log levels
+- `internal/logging/security_test.go` (281 lines) - Tests
+
+**Files Modified:**
+- `internal/api/middleware.go` - Rate limiting + security logging integration
+- `internal/api/server.go` - Rate limiter integration
+- `cmd/agent/main.go` - Security logger initialization
+- `.env.example` - Rate limiting and logging configuration
+
+---
+
 ## [0.9.0] - 2026-04-05
 
 ### 🔧 Technical
