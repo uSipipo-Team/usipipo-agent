@@ -25,6 +25,7 @@ type Collector struct {
 	detailedCache         *DetailedOutlineMetrics
 	detailedCacheTime     time.Time
 	detailedTTL           time.Duration // 1 hour
+	wgCollector           *vpn.WireGuardMetricsCollector
 }
 
 // NewCollector creates a new metrics collector
@@ -35,6 +36,11 @@ func NewCollector(serverID string) *Collector {
 		outlineTTL: 5 * time.Minute,
 		detailedTTL: 1 * time.Hour,
 	}
+}
+
+// SetWireGuardCollector sets the WireGuard metrics collector
+func (c *Collector) SetWireGuardCollector(wgCollector *vpn.WireGuardMetricsCollector) {
+	c.wgCollector = wgCollector
 }
 
 // GetMetrics returns current metrics (cached for cacheTTL duration)
@@ -89,6 +95,23 @@ func (c *Collector) GetMetrics(ctx context.Context) (*ServerMetrics, error) {
 	metrics.VPN.Outline.TotalBytesTransferred = 0
 	metrics.VPN.WireGuard.ActivePeers = 0
 	metrics.VPN.WireGuard.TotalBytesTransferred = 0
+
+	// Collect WireGuard metrics if collector is available
+	if c.wgCollector != nil {
+		wgMetrics, err := c.GetWireGuardMetrics(c.wgCollector)
+		if err != nil {
+			// Log error but continue - WireGuard metrics are optional
+			// WireGuard metrics will be populated in the handler level
+		} else {
+			// Update VPN WireGuard metrics from collector
+			if peerCount, ok := wgMetrics["peer_count"].(int); ok {
+				metrics.VPN.WireGuard.ActivePeers = peerCount
+			}
+			if totalBytes, ok := wgMetrics["total_bytes"].(uint64); ok {
+				metrics.VPN.WireGuard.TotalBytesTransferred = totalBytes
+			}
+		}
+	}
 
 	// Latency metrics (to be implemented)
 	metrics.Latency.Avg = 0
@@ -243,6 +266,45 @@ func (c *Collector) GetDetailedOutlineMetrics(ctx context.Context, outlineClient
 	// Cache the metrics (1 hour TTL)
 	c.detailedCache = result
 	c.detailedCacheTime = time.Now()
+
+	return result, nil
+}
+
+// GetWireGuardMetrics collects WireGuard peer metrics
+func (c *Collector) GetWireGuardMetrics(wgCollector *vpn.WireGuardMetricsCollector) (map[string]interface{}, error) {
+	metrics, err := wgCollector.GetPeerMetrics()
+	if err != nil {
+		return nil, err
+	}
+
+	// Calculate totals
+	var totalRx, totalTx uint64
+	var connectedCount int
+	var lastHandshake *time.Time
+
+	for _, peer := range metrics.Peers {
+		totalRx += peer.BytesReceived
+		totalTx += peer.BytesSent
+		if peer.IsConnected {
+			connectedCount++
+		}
+		if lastHandshake == nil || peer.LastHandshake.After(*lastHandshake) {
+			lastHandshake = &peer.LastHandshake
+		}
+	}
+
+	result := map[string]interface{}{
+		"peer_count":      metrics.PeerCount,
+		"connected_peers": connectedCount,
+		"total_bytes_rx":  totalRx,
+		"total_bytes_tx":  totalTx,
+		"total_bytes":     totalRx + totalTx,
+		"last_handshake":  nil,
+	}
+
+	if lastHandshake != nil {
+		result["last_handshake"] = lastHandshake.Format(time.RFC3339)
+	}
 
 	return result, nil
 }
