@@ -117,6 +117,9 @@ func main() {
 
 	log.Println("Shutting down...")
 
+	// Log shutdown event
+	securityLogger.LogShutdown()
+
 	// Stop reporter
 	metricsReporter.Stop()
 

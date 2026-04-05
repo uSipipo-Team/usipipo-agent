@@ -56,13 +56,13 @@ func sanitizeString(s string) string {
 		// Find and mask API key patterns
 		result := ""
 		remaining := s
-		
+
 		for strings.Contains(remaining, "agent_") {
 			// Split at the next "agent_"
 			idx := strings.Index(remaining, "agent_")
 			result += remaining[:idx]
 			remaining = remaining[idx+6:] // Skip "agent_"
-			
+
 			// Find the end of the potential key (space, newline, or end of string)
 			end := 0
 			for i, c := range remaining {
@@ -74,18 +74,18 @@ func sanitizeString(s string) string {
 			if end == 0 {
 				end = len(remaining)
 			}
-			
+
 			// Limit to 40 chars max for key part
 			if end > 40 {
 				end = 40
 			}
-			
+
 			// Mask the key
 			keyPart := "agent_" + remaining[:end]
 			result += maskAPIKey(keyPart)
 			remaining = remaining[end:]
 		}
-		
+
 		// Add any remaining text
 		result += remaining
 		s = result
@@ -98,7 +98,7 @@ func sanitizeString(s string) string {
 // Excludes: Authorization, X-API-Key, Cookie, Set-Cookie
 func sanitizeHeaders(headers http.Header) map[string]string {
 	safeHeaders := make(map[string]string)
-	
+
 	// Headers to exclude (case-insensitive)
 	excludedHeaders := map[string]bool{
 		"authorization": true,
@@ -106,17 +106,17 @@ func sanitizeHeaders(headers http.Header) map[string]string {
 		"cookie":        true,
 		"set-cookie":    true,
 	}
-	
+
 	for key, values := range headers {
 		// Check if header should be excluded
 		if excludedHeaders[strings.ToLower(key)] {
 			continue
 		}
-		
+
 		// Join multiple values with comma
 		safeHeaders[key] = sanitizeString(strings.Join(values, ", "))
 	}
-	
+
 	return safeHeaders
 }
 

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/uSipipo-Team/usipipo-agent/internal/logging"
 	"github.com/uSipipo-Team/usipipo-agent/internal/metrics"
 	"github.com/uSipipo-Team/usipipo-agent/internal/vpn"
 )
@@ -20,6 +21,7 @@ func logWarning(format string, args ...interface{}) {
 var metricsCollector *metrics.Collector
 var outlineClient *vpn.OutlineClient
 var wireguardClient *vpn.WireGuardClient
+var securityLogger *logging.SecurityLogger
 
 // SetMetricsCollector sets the metrics collector instance
 func SetMetricsCollector(c *metrics.Collector) {
@@ -34,6 +36,11 @@ func SetOutlineClient(client *vpn.OutlineClient) {
 // SetWireGuardClient sets the WireGuard client instance
 func SetWireGuardClient(client *vpn.WireGuardClient) {
 	wireguardClient = client
+}
+
+// SetSecurityLogger sets the security logger instance
+func SetSecurityLogger(logger *logging.SecurityLogger) {
+	securityLogger = logger
 }
 
 // HealthHandler returns server health status
