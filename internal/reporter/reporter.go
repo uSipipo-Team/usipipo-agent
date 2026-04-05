@@ -2,6 +2,7 @@ package reporter
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
 	"log"
 	"time"
@@ -22,13 +23,33 @@ type Reporter struct {
 	stopChan   chan struct{}
 }
 
-// NewReporter creates a new metrics reporter
-func NewReporter(backendURL, serverID, apiKey string, collector *metrics.Collector) *Reporter {
+// NewReporter creates a new metrics reporter with secure TLS configuration
+func NewReporter(backendURL, serverID, apiKey string, collector *metrics.Collector, verifySSL bool, timeout time.Duration) *Reporter {
+	client := resty.New()
+	
+	// Configure TLS with secure defaults
+	tlsConfig := &tls.Config{
+		MinVersion: tls.VersionTLS12, // Enforce TLS 1.2 minimum
+	}
+	
+	if !verifySSL {
+		tlsConfig.InsecureSkipVerify = true
+	}
+	
+	client.SetTLSClientConfig(tlsConfig)
+	client.SetTimeout(timeout)
+	// Note: resty v2.11.0 doesn't have SetConnectTimeout, using SetTimeout instead
+
+	// Retry logic for transient failures
+	client.SetRetryCount(3)
+	client.SetRetryWaitTime(2 * time.Second)
+	client.SetRetryMaxWaitTime(10 * time.Second)
+	
 	return &Reporter{
 		backendURL: backendURL,
 		serverID:   serverID,
 		apiKey:     apiKey,
-		client:     resty.New(),
+		client:     client,
 		collector:  collector,
 		interval:   1 * time.Minute,
 		stopChan:   make(chan struct{}),

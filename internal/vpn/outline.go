@@ -5,6 +5,8 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"log"
+	"net/http"
 
 	"github.com/go-resty/resty/v2"
 )
@@ -24,14 +26,57 @@ type OutlineKey struct {
 	Method    string `json:"method"`
 }
 
+// OutlineServerInfo represents server information from GET /server
+type OutlineServerInfo struct {
+	Name                  string `json:"name"`
+	ServerID              string `json:"serverId"`
+	MetricsEnabled        bool   `json:"metricsEnabled"`
+	Version               string `json:"version"`
+	PortForNewAccessKeys  int    `json:"portForNewAccessKeys"`
+	HostnameForAccessKeys string `json:"hostnameForAccessKeys"`
+}
+
+// OutlineTransferMetrics represents bandwidth usage per key (last 30 days)
+type OutlineTransferMetrics struct {
+	BytesTransferredByUserID map[string]uint64 `json:"bytesTransferredByUserId"`
+}
+
+// OutlineDetailedMetrics represents time-series metrics from Prometheus
+type OutlineDetailedMetrics struct {
+	Status string      `json:"status"`
+	Data   MetricsData `json:"data"`
+}
+
+type MetricsData struct {
+	ResultType string         `json:"resultType"`
+	Result     []MetricResult `json:"result"`
+}
+
+type MetricResult struct {
+	Metric MetricInfo      `json:"metric"`
+	Values [][]interface{} `json:"values"` // [timestamp, value]
+}
+
+type MetricInfo struct {
+	AccessKey string `json:"access_key"`
+	Name      string `json:"__name__"`
+}
+
 // NewOutlineClient creates a new Outline API client
 func NewOutlineClient(apiURL string, insecureSkipVerify bool) *OutlineClient {
 	client := resty.New()
-	
-	// Configure TLS for self-signed certificates
-	if insecureSkipVerify {
-		client.SetTLSClientConfig(&tls.Config{InsecureSkipVerify: true})
+
+	// Configure TLS with secure defaults
+	tlsConfig := &tls.Config{
+		MinVersion: tls.VersionTLS12, // Enforce TLS 1.2 minimum
 	}
+
+	// Allow insecure skip verify for self-signed certificates (development/testing)
+	if insecureSkipVerify {
+		tlsConfig.InsecureSkipVerify = true
+	}
+
+	client.SetTLSClientConfig(tlsConfig)
 	
 	return &OutlineClient{
 		apiURL: apiURL,
@@ -73,7 +118,7 @@ func (c *OutlineClient) CreateKey(ctx context.Context, name string) (*OutlineKey
 
 	if err != nil {
 		// Non-fatal, log warning
-		fmt.Printf("Warning: failed to rename key: %v\n", err)
+		log.Printf("[WARNING] failed to rename key: %v\n", err)
 	}
 
 	return &OutlineKey{
@@ -85,7 +130,8 @@ func (c *OutlineClient) CreateKey(ctx context.Context, name string) (*OutlineKey
 	}, nil
 }
 
-// DeleteKey deletes an Outline access key
+// DeleteKey deletes an Outline access key.
+// This operation is idempotent - returns success even if the key doesn't exist (404).
 func (c *OutlineClient) DeleteKey(ctx context.Context, keyID string) error {
 	resp, err := c.client.R().
 		SetContext(ctx).
@@ -95,8 +141,8 @@ func (c *OutlineClient) DeleteKey(ctx context.Context, keyID string) error {
 		return fmt.Errorf("failed to delete key: %w", err)
 	}
 
-	// 404 means already deleted
-	if resp.StatusCode() == 404 || resp.StatusCode() == 204 {
+	// 204 = deleted successfully, 404 = already deleted (idempotent behavior)
+	if resp.StatusCode() == 204 || resp.StatusCode() == 404 {
 		return nil
 	}
 
@@ -207,4 +253,72 @@ func (c *OutlineClient) GetTotalBytesTransferred(ctx context.Context) (uint64, e
 	}
 
 	return total, nil
+}
+
+// CheckStatus verifies Outline API connectivity and returns server info
+func (c *OutlineClient) CheckStatus(ctx context.Context) (*OutlineServerInfo, error) {
+	resp, err := c.client.R().
+		SetContext(ctx).
+		Get(c.apiURL + "/server")
+
+	if err != nil {
+		return nil, fmt.Errorf("Outline API unreachable: %w", err)
+	}
+
+	if resp.StatusCode() != http.StatusOK {
+		return nil, fmt.Errorf("Outline API returned unexpected status: %d", resp.StatusCode())
+	}
+
+	var info OutlineServerInfo
+	if err := json.Unmarshal(resp.Body(), &info); err != nil {
+		return nil, fmt.Errorf("failed to parse server info: %w", err)
+	}
+
+	return &info, nil
+}
+
+// GetTransferMetrics retrieves bandwidth usage per key (last 30 days)
+func (c *OutlineClient) GetTransferMetrics(ctx context.Context) (*OutlineTransferMetrics, error) {
+	resp, err := c.client.R().
+		SetContext(ctx).
+		Get(c.apiURL + "/metrics/transfer")
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to get transfer metrics: %w", err)
+	}
+
+	if resp.StatusCode() != http.StatusOK {
+		return nil, fmt.Errorf("unexpected status: %d", resp.StatusCode())
+	}
+
+	var metrics OutlineTransferMetrics
+	if err := json.Unmarshal(resp.Body(), &metrics); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &metrics, nil
+}
+
+// GetDetailedMetrics retrieves time-series metrics for specified period
+// Supported since values: 1h, 24h, 7d, 30d
+func (c *OutlineClient) GetDetailedMetrics(ctx context.Context, since string) (*OutlineDetailedMetrics, error) {
+	resp, err := c.client.R().
+		SetContext(ctx).
+		SetQueryParam("since", since).
+		Get(c.apiURL + "/experimental/server/metrics")
+
+	if err != nil {
+		return nil, fmt.Errorf("failed to get detailed metrics: %w", err)
+	}
+
+	if resp.StatusCode() != http.StatusOK {
+		return nil, fmt.Errorf("unexpected status: %d", resp.StatusCode())
+	}
+
+	var metrics OutlineDetailedMetrics
+	if err := json.Unmarshal(resp.Body(), &metrics); err != nil {
+		return nil, fmt.Errorf("failed to parse response: %w", err)
+	}
+
+	return &metrics, nil
 }

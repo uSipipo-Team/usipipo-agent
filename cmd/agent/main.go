@@ -8,10 +8,14 @@ import (
 
 	"github.com/uSipipo-Team/usipipo-agent/internal/api"
 	"github.com/uSipipo-Team/usipipo-agent/internal/config"
+	"github.com/uSipipo-Team/usipipo-agent/internal/logging"
 	"github.com/uSipipo-Team/usipipo-agent/internal/metrics"
 	"github.com/uSipipo-Team/usipipo-agent/internal/reporter"
 	"github.com/uSipipo-Team/usipipo-agent/internal/vpn"
 )
+
+// Version is set at build time via ldflags
+var Version = "0.2.0-dev"
 
 func main() {
 	cfg := config.Load()
@@ -20,6 +24,12 @@ func main() {
 	if cfg.APIKey == "" {
 		log.Fatal("AGENT_API_KEY is required")
 	}
+
+	// Validate API key format at startup (fail fast)
+	if err := cfg.ValidateAPIKey(); err != nil {
+		log.Fatalf("Invalid API key configuration: %v", err)
+	}
+
 	if cfg.BackendURL == "" {
 		log.Fatal("BACKEND_URL is required")
 	}
@@ -31,7 +41,7 @@ func main() {
 	log.Printf("Server ID: %s", cfg.ServerID)
 	log.Printf("Backend URL: %s", cfg.BackendURL)
 	log.Printf("Outline API URL: %s", cfg.OutlineAPIURL)
-	log.Printf("WireGuard Interface: %s", cfg.WireGuardInterface)
+	log.Printf("WireGuard Interface: %s (%s:%d)", cfg.WireGuardInterface, cfg.WireGuardServerIP, cfg.WireGuardServerPort)
 	log.Printf("Rate Limiting: enabled=%v, rps=%.1f, burst=%d", 
 		cfg.RateLimitEnabled, cfg.RateLimitRPS, cfg.RateLimitBurst)
 
@@ -47,9 +57,9 @@ func main() {
 	wireguardClient, err := vpn.NewWireGuardClient(
 		cfg.WireGuardInterface,
 		"/etc/wireguard/wg0.conf",
-		cfg.ServerID, // Will be replaced with actual server IP
-		51820,        // Default WireGuard port
-		"1.1.1.1",    // Cloudflare DNS
+		cfg.WireGuardServerIP,   // Public IP for client endpoint
+		cfg.WireGuardServerPort, // Port from WG_SERVER_PORT
+		"1.1.1.1",               // Cloudflare DNS
 	)
 	if err != nil {
 		log.Printf("Warning: WireGuard client initialization failed: %v", err)
@@ -59,6 +69,10 @@ func main() {
 		log.Printf("WireGuard client initialized successfully")
 	}
 
+	// Initialize WireGuard metrics collector
+	wireguardMetricsCollector := vpn.NewWireGuardMetricsCollector(cfg.WireGuardInterface)
+	metricsCollector.SetWireGuardCollector(wireguardMetricsCollector)
+
 	// Create HTTP server with rate limiting
 	rateConfig := api.RateLimiterConfig{
 		RequestsPerSecond: cfg.RateLimitRPS,
@@ -67,8 +81,24 @@ func main() {
 	}
 	server := api.NewServer(cfg.APIKey, cfg.OutlineAPIURL, rateConfig)
 
+	// Initialize security logger
+	logLevel := logging.ParseLogLevel(os.Getenv("LOG_LEVEL"))
+	securityLogger := logging.NewSecurityLogger(cfg.ServerID, Version, logLevel)
+	api.SetSecurityLogger(securityLogger)
+
+	// Log startup event
+	// TODO: Implement actual config hash calculation
+	securityLogger.LogStartup("config-hash-placeholder")
+
 	// Initialize and start metrics reporter
-	metricsReporter := reporter.NewReporter(cfg.BackendURL, cfg.ServerID, cfg.APIKey, metricsCollector)
+	metricsReporter := reporter.NewReporter(
+		cfg.BackendURL,
+		cfg.ServerID,
+		cfg.APIKey,
+		metricsCollector,
+		cfg.OutlineVerifySSL,
+		cfg.HTTPClientTimeout,
+	)
 	go metricsReporter.Start()
 
 	// Start HTTP server in goroutine
