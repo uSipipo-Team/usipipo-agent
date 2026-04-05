@@ -69,6 +69,10 @@ func main() {
 		log.Printf("WireGuard client initialized successfully")
 	}
 
+	// Initialize WireGuard metrics collector
+	wireguardMetricsCollector := vpn.NewWireGuardMetricsCollector(cfg.WireGuardInterface)
+	metricsCollector.SetWireGuardCollector(wireguardMetricsCollector)
+
 	// Create HTTP server with rate limiting
 	rateConfig := api.RateLimiterConfig{
 		RequestsPerSecond: cfg.RateLimitRPS,
