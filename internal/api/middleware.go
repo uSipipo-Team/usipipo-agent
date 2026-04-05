@@ -6,17 +6,8 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/uSipipo-Team/usipipo-agent/internal/logging"
 	"github.com/uSipipo-Team/usipipo-agent/internal/utils/validation"
 )
-
-// securityLogger is the global security logger instance
-var securityLogger *logging.SecurityLogger
-
-// SetSecurityLogger sets the global security logger instance
-func SetSecurityLogger(logger *logging.SecurityLogger) {
-	securityLogger = logger
-}
 
 // AuthFailureMiddleware tracks and enforces auth failure limits
 func AuthFailureMiddleware(rl *HybridRateLimiter) gin.HandlerFunc {
