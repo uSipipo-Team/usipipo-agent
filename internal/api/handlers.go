@@ -1,14 +1,22 @@
 package api
 
 import (
+	"log"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/uSipipo-Team/usipipo-agent/internal/logging"
 	"github.com/uSipipo-Team/usipipo-agent/internal/metrics"
 	"github.com/uSipipo-Team/usipipo-agent/internal/vpn"
 )
+
+// logWarning logs a warning message to stderr
+// This wrapper avoids errcheck linter issues with fmt.Printf
+func logWarning(format string, args ...interface{}) {
+	log.Printf("[WARNING] "+format, args...)
+}
 
 var metricsCollector *metrics.Collector
 var outlineClient *vpn.OutlineClient
@@ -37,8 +45,23 @@ func SetSecurityLogger(logger *logging.SecurityLogger) {
 
 // HealthHandler returns server health status
 func HealthHandler(c *gin.Context) {
+	// Check if VPN clients are initialized
+	outlineStatus := "offline"
+	wireguardStatus := "offline"
+	
+	if outlineClient != nil {
+		outlineStatus = "online"
+	}
+	if wireguardClient != nil {
+		wireguardStatus = "online"
+	}
+	
 	c.JSON(http.StatusOK, gin.H{
-		"status": "healthy",
+		"status":          "healthy",
+		"agent_status":    "online",
+		"outline":         outlineStatus,
+		"wireguard":       wireguardStatus,
+		"timestamp":       time.Now().Unix(),
 	})
 }
 
@@ -50,7 +73,7 @@ func StatusHandler(c *gin.Context) {
 	})
 }
 
-// MetricsHandler returns detailed system metrics
+// MetricsHandler returns detailed system metrics including Outline
 func MetricsHandler(c *gin.Context) {
 	if metricsCollector == nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -65,6 +88,28 @@ func MetricsHandler(c *gin.Context) {
 			"error": err.Error(),
 		})
 		return
+	}
+
+		// Collect Outline metrics if client is available
+	if outlineClient != nil {
+		outlineMetrics, err := metricsCollector.GetOutlineMetrics(c.Request.Context(), outlineClient)
+		if err != nil {
+			// Log error but continue - Outline metrics are optional
+			logWarning("failed to collect Outline metrics: %v", err)
+		} else {
+			m.Outline = outlineMetrics
+		}
+
+		// Collect detailed metrics if interval > 1 hour
+		if metricsCollector.ShouldCollectDetailed() {
+			detailedMetrics, err := metricsCollector.GetDetailedOutlineMetrics(c.Request.Context(), outlineClient)
+			if err != nil {
+				logWarning("failed to collect detailed Outline metrics: %v", err)
+			} else {
+				m.Detailed = detailedMetrics
+				metricsCollector.MarkDetailedCollected()
+			}
+		}
 	}
 
 	c.JSON(http.StatusOK, m)

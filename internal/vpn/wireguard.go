@@ -6,20 +6,34 @@ import (
 	"net"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
+	"sync"
+	"time"
+	"unicode"
 
 	"golang.zx2c4.com/wireguard/wgctrl"
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 )
 
+// VPN key name validation constants
+const (
+	VPNKeyNameMinLength = 3
+	VPNKeyNameMaxLength = 50
+)
+
 // WireGuardClient handles communication with WireGuard interface
 type WireGuardClient struct {
-	interfaceName string
-	configPath    string
-	serverIP      string
-	serverPort    int
-	clientDNS     string
-	client        *wgctrl.Client
+	interfaceName    string
+	configPath       string
+	serverIP         string
+	serverPort       int
+	clientDNS        string
+	client           *wgctrl.Client
+	networkCIDR      string
+	startIP          int
+	endIP            int
+	ipAllocationLock sync.Mutex
 }
 
 // WireGuardPeer represents a WireGuard peer
@@ -30,11 +44,64 @@ type WireGuardPeer struct {
 	Config    string `json:"config"`
 }
 
-// NewWireGuardClient creates a new WireGuard client using wgctrl
+// NewWireGuardClient creates a new WireGuard client using wgctrl.
+// Reads the server network CIDR from the wg0.conf Address field.
 func NewWireGuardClient(interfaceName, configPath, serverIP string, serverPort int, clientDNS string) (*WireGuardClient, error) {
+	// Read network CIDR from wg0.conf Address field
+	networkCIDR, startIP, endIP, err := readNetworkConfig(configPath)
+	if err != nil {
+		// Fallback to defaults if config can't be read
+		networkCIDR = "10.88.88.0/24"
+		startIP = 2
+		endIP = 254
+	}
+	return NewWireGuardClientWithRange(interfaceName, configPath, serverIP, serverPort, clientDNS, networkCIDR, startIP, endIP)
+}
+
+// readNetworkConfig parses the wg0.conf Address field to extract the network CIDR and IP range.
+// Returns the network CIDR, start IP (first client IP after server), and end IP (last host).
+func readNetworkConfig(configPath string) (string, int, int, error) {
+	content, err := os.ReadFile(configPath)
+	if err != nil {
+		return "", 0, 0, err
+	}
+
+	// Match Address line, e.g. "Address = 10.88.88.1/24" or "Address = 10.88.88.1/24,fd42:42:42::1/64"
+	addrPattern := regexp.MustCompile(`Address\s*=\s*([\d.]+)/(\d+)`)
+	matches := addrPattern.FindStringSubmatch(string(content))
+	if len(matches) < 3 {
+		return "", 0, 0, fmt.Errorf("no Address found in config")
+	}
+
+	serverIP := matches[1]
+	prefixLen, _ := strconv.Atoi(matches[2])
+
+	// Parse the server IP directly (don't use ParseCIDR - it normalizes to network address)
+	ip := net.ParseIP(serverIP).To4()
+	if ip == nil {
+		return "", 0, 0, fmt.Errorf("invalid IP address: %s", serverIP)
+	}
+
+	// Reconstruct network CIDR string
+	networkCIDR := fmt.Sprintf("%d.%d.%d.%d/%d", ip[0], ip[1], ip[2], ip[3], prefixLen)
+
+	// Start at server IP + 1 (skip server's own IP), end at .254
+	startIP := int(ip[3]) + 1
+	endIP := 254
+
+	return networkCIDR, startIP, endIP, nil
+}
+
+// NewWireGuardClientWithRange creates a new WireGuard client with custom IP range
+func NewWireGuardClientWithRange(interfaceName, configPath, serverIP string, serverPort int, clientDNS, networkCIDR string, startIP, endIP int) (*WireGuardClient, error) {
 	client, err := wgctrl.New()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create wgctrl client: %w", err)
+	}
+
+	// Validate IP range
+	if startIP < 2 || endIP > 254 || startIP >= endIP {
+		return nil, fmt.Errorf("invalid IP range: start=%d, end=%d (must be 2-254, start < end)", startIP, endIP)
 	}
 
 	return &WireGuardClient{
@@ -44,6 +111,9 @@ func NewWireGuardClient(interfaceName, configPath, serverIP string, serverPort i
 		serverPort:    serverPort,
 		clientDNS:     clientDNS,
 		client:        client,
+		networkCIDR:   networkCIDR,
+		startIP:       startIP,
+		endIP:         endIP,
 	}, nil
 }
 
@@ -55,8 +125,43 @@ func (c *WireGuardClient) Close() error {
 	return nil
 }
 
+// ValidateKeyName validates a VPN key name according to strict rules:
+// - Length: 3-50 characters
+// - Allowed: alphanumeric (a-zA-Z0-9), spaces, hyphens (-), underscores (_)
+// - Blocked: Emoji, unicode confusables, shell special chars
+func (c *WireGuardClient) ValidateKeyName(name string) bool {
+	// Check length
+	if len(name) < VPNKeyNameMinLength || len(name) > VPNKeyNameMaxLength {
+		return false
+	}
+
+	// Check each character is allowed
+	for _, r := range name {
+		// Allow alphanumeric
+		if unicode.IsLetter(r) && r <= unicode.MaxASCII {
+			continue
+		}
+		if unicode.IsDigit(r) {
+			continue
+		}
+		// Allow spaces, hyphens, underscores
+		if r == ' ' || r == '-' || r == '_' {
+			continue
+		}
+		// Block everything else (emoji, unicode confusables, special chars)
+		return false
+	}
+
+	return true
+}
+
 // CreatePeer creates a new WireGuard peer using wgctrl
 func (c *WireGuardClient) CreatePeer(ctx context.Context, name string) (*WireGuardPeer, error) {
+	// Validate key name first (defense in depth)
+	if !c.ValidateKeyName(name) {
+		return nil, fmt.Errorf("invalid VPN key name: must be %d-%d characters, alphanumeric, spaces, hyphens, or underscores only", VPNKeyNameMinLength, VPNKeyNameMaxLength)
+	}
+
 	// Generate private key using wgctrl
 	privateKey, err := wgtypes.GeneratePrivateKey()
 	if err != nil {
@@ -117,8 +222,12 @@ func (c *WireGuardClient) CreatePeer(ctx context.Context, name string) (*WireGua
 	}, nil
 }
 
-// DeletePeer removes a WireGuard peer using wgctrl
-// This operation is idempotent - returns success even if peer doesn't exist
+// DeletePeer removes a WireGuard peer using wgctrl.
+// This operation is idempotent - returns success even if the peer doesn't exist.
+// Idempotent behavior:
+//   - Returns nil if peer is successfully deleted (204 equivalent)
+//   - Returns nil if peer is not found in config (already deleted)
+//   - Returns nil if wgctrl reports "no such process" or "not found"
 func (c *WireGuardClient) DeletePeer(ctx context.Context, name string) error {
 	// Find peer public key from config
 	pubKey, err := c.findPeerPublicKey(name)
@@ -150,7 +259,7 @@ func (c *WireGuardClient) DeletePeer(ctx context.Context, name string) error {
 	if err != nil {
 		// If peer doesn't exist, wgctrl may return an error
 		// Treat "not found" errors as success (idempotent behavior)
-		if strings.Contains(err.Error(), "no such process") || 
+		if strings.Contains(err.Error(), "no such process") ||
 		   strings.Contains(err.Error(), "not found") {
 			return nil
 		}
@@ -210,14 +319,44 @@ func (c *WireGuardClient) GetTotalBytesTransferred(ctx context.Context) (uint64,
 
 // Helper methods
 
+// getNextAvailableIP finds the next available IP address with file locking to prevent race conditions.
+// Uses exclusive file locking (flock) to ensure only one IP allocation happens at a time.
+// Lock timeout: 5 seconds. Returns error if lock cannot be acquired or no IPs available.
 func (c *WireGuardClient) getNextAvailableIP() (string, error) {
-	// Read config file to find used IPs
-	content, err := os.ReadFile(c.configPath)
+	// Use mutex for in-process synchronization
+	c.ipAllocationLock.Lock()
+	defer c.ipAllocationLock.Unlock()
+
+	// Create lock file for cross-process synchronization
+	lockPath := c.configPath + ".alloc.lock"
+	lockFile, err := os.OpenFile(lockPath, os.O_CREATE|os.O_RDWR, 0600)
 	if err != nil {
-		return "10.0.0.2", nil // Default fallback
+		return "", fmt.Errorf("failed to open lock file: %w", err)
+	}
+	defer func() { _ = lockFile.Close() }()
+
+	// Acquire exclusive lock with timeout (5 seconds)
+	// On Windows, this is a no-op (mutex provides synchronization)
+	// On Unix, uses flock for cross-process locking
+	lockTimeout := 5 * time.Second
+	if err := acquireLockWithTimeout(lockFile, lockTimeout); err != nil {
+		return "", fmt.Errorf("failed to acquire IP allocation lock: %w", err)
 	}
 
-	// Find all used IPs
+	// Ensure lock is released when function returns
+	defer releaseLock(lockFile)
+
+	// Now safe to read config and find available IP
+	content, err := os.ReadFile(c.configPath)
+	if err != nil {
+		// If config doesn't exist, return first IP in range
+		if os.IsNotExist(err) {
+			return c.buildIP(c.startIP), nil
+		}
+		return "", fmt.Errorf("failed to read config file: %w", err)
+	}
+
+	// Find all used IPs in the config
 	ipPattern := regexp.MustCompile(`AllowedIPs\s*=\s*([\d.]+)/32`)
 	matches := ipPattern.FindAllStringSubmatch(string(content), -1)
 
@@ -226,15 +365,29 @@ func (c *WireGuardClient) getNextAvailableIP() (string, error) {
 		usedIPs[match[1]] = true
 	}
 
-	// Find first available IP in 10.0.0.0/24 range
-	for i := 2; i < 255; i++ {
-		ip := fmt.Sprintf("10.0.0.%d", i)
+	// Find first available IP in configured range
+	for i := c.startIP; i <= c.endIP; i++ {
+		ip := c.buildIP(i)
 		if !usedIPs[ip] {
 			return ip, nil
 		}
 	}
 
-	return "", fmt.Errorf("no available IPs in range")
+	return "", fmt.Errorf("no available IPs in range %d-%d", c.startIP, c.endIP)
+}
+
+func (c *WireGuardClient) buildIP(lastOctet int) string {
+	// Parse network CIDR to get base IP
+	_, ipNet, err := net.ParseCIDR(c.networkCIDR)
+	if err != nil {
+		// Fallback
+		return fmt.Sprintf("10.88.88.%d", lastOctet)
+	}
+	base := ipNet.IP.To4()
+	if base == nil {
+		return fmt.Sprintf("10.88.88.%d", lastOctet)
+	}
+	return fmt.Sprintf("%d.%d.%d.%d", base[0], base[1], base[2], lastOctet)
 }
 
 func (c *WireGuardClient) findPeerPublicKey(name string) (string, error) {

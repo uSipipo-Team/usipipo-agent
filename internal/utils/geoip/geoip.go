@@ -3,6 +3,7 @@ package geoip
 import (
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/go-resty/resty/v2"
 )
@@ -16,10 +17,17 @@ type GeoIPResponse struct {
 	City        string `json:"city"`
 }
 
-// GetLocation fetches public IP and geo location
+// GetLocation fetches public IP and geo location using HTTPS
 func GetLocation(client *resty.Client) (*GeoIPResponse, error) {
-	resp, err := client.R().
-		Get("http://ip-api.com/json/")
+	// Create dedicated client to avoid modifying shared instance
+	geoClient := resty.New()
+	geoClient.SetTimeout(10 * time.Second)
+	geoClient.SetRetryCount(2)
+	geoClient.SetRetryWaitTime(1 * time.Second)
+	geoClient.SetRetryMaxWaitTime(5 * time.Second)
+
+	resp, err := geoClient.R().
+		Get("https://ip-api.com/json/") // HTTPS for security
 
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch geo location: %w", err)

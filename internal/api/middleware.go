@@ -10,20 +10,28 @@ import (
 	"github.com/uSipipo-Team/usipipo-agent/internal/utils/validation"
 )
 
+// securityLogger is the global security logger instance
+var securityLogger *logging.SecurityLogger
+
+// SetSecurityLogger sets the global security logger instance
+func SetSecurityLogger(logger *logging.SecurityLogger) {
+	securityLogger = logger
+}
+
 // AuthFailureMiddleware tracks and enforces auth failure limits
 func AuthFailureMiddleware(rl *HybridRateLimiter) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ip := c.ClientIP()
 
 		// Check auth failure limits
-		allowed, retryAfter, err := rl.checkAuthFailureLimit(ip)
+		allowed, retryAfter, _ := rl.checkAuthFailureLimit(ip)
 		if !allowed {
 			c.Header("Retry-After", fmt.Sprintf("%.0f", retryAfter.Seconds()))
 			c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{
 				"error":       "Too many failed authentication attempts. Please try again later.",
 				"retry_after": int(retryAfter.Seconds()),
 			})
-			
+
 			// Log rate limit exceeded for auth failures
 			if securityLogger != nil {
 				securityLogger.LogRateLimitExceeded(ip, c.Request.URL.Path, 0)
@@ -68,7 +76,7 @@ func HybridRateLimitMiddleware(rl *HybridRateLimiter) gin.HandlerFunc {
 			c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{
 				"error": "Rate limit exceeded. Please try again later.",
 			})
-			
+
 			// Log rate limit exceeded
 			if securityLogger != nil {
 				securityLogger.LogRateLimitExceeded(ip, c.Request.URL.Path, rl.config.RequestsPerSecond)
@@ -95,7 +103,7 @@ func APIKeyMiddlewareWithRateLimit(validKey string, rl *HybridRateLimiter) gin.H
 			if securityLogger != nil {
 				securityLogger.LogAuthFailure(c.ClientIP(), c.Request.URL.Path, "missing_key", c.Request.UserAgent())
 			}
-			
+
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
 				"error": "Missing API key",
 			})
@@ -108,7 +116,7 @@ func APIKeyMiddlewareWithRateLimit(validKey string, rl *HybridRateLimiter) gin.H
 			if securityLogger != nil {
 				securityLogger.LogAuthFailure(c.ClientIP(), c.Request.URL.Path, "invalid_format", c.Request.UserAgent())
 			}
-			
+
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
 				"error": "Invalid API key format",
 			})
@@ -124,7 +132,7 @@ func APIKeyMiddlewareWithRateLimit(validKey string, rl *HybridRateLimiter) gin.H
 				if securityLogger != nil {
 					securityLogger.LogAuthFailure(c.ClientIP(), c.Request.URL.Path, "invalid_key", c.Request.UserAgent())
 				}
-				
+
 				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
 					"error": "Invalid API key",
 				})
@@ -137,7 +145,7 @@ func APIKeyMiddlewareWithRateLimit(validKey string, rl *HybridRateLimiter) gin.H
 				if securityLogger != nil {
 					securityLogger.LogAuthFailure(c.ClientIP(), c.Request.URL.Path, "invalid_key", c.Request.UserAgent())
 				}
-				
+
 				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
 					"error": "Invalid API key",
 				})
@@ -179,7 +187,7 @@ func APIKeyMiddleware(validKey string) gin.HandlerFunc {
 			if securityLogger != nil {
 				securityLogger.LogAuthFailure(c.ClientIP(), c.Request.URL.Path, "missing_key", c.Request.UserAgent())
 			}
-			
+
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
 				"error": "Missing API key",
 			})
@@ -191,7 +199,7 @@ func APIKeyMiddleware(validKey string) gin.HandlerFunc {
 			if securityLogger != nil {
 				securityLogger.LogAuthFailure(c.ClientIP(), c.Request.URL.Path, "invalid_key", c.Request.UserAgent())
 			}
-			
+
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
 				"error": "Invalid API key",
 			})

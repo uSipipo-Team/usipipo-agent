@@ -67,10 +67,9 @@ func (sl *SecurityLogger) log(entry LogEntry) {
 		log.Printf("ERROR: Failed to marshal log entry: %v", err)
 		return
 	}
-	
-	// Write to output
-	sl.out.Write(data)
-	sl.out.Write([]byte("\n"))
+	// Write to output (ignore errors as logging failures shouldn't crash the app)
+	_, _ = sl.out.Write(data)
+	_, _ = sl.out.Write([]byte("\n"))
 }
 
 // shouldLog checks if the entry level should be logged
