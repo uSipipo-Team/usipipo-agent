@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.8.2] - 2026-04-05
+
+### 🐛 Bug Fixes
+
+**WireGuard Metrics CI Test Fix:**
+- ✅ Fix test failure in CI without WireGuard interface
+- ✅ Accept both error messages in GetPeerByPublicKey test
+
+### 🔧 Technical Details
+
+**Files Changed:**
+- `internal/vpn/wireguard_metrics_test.go` - Accept 'operation not permitted' error in CI
+
+---
+
 ## [0.8.1] - 2026-04-05
 
 ### 🐛 Bug Fixes
