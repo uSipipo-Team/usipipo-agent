@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.9.0] - 2026-04-05
+
+### 🔧 Technical
+
+**Release Workflow Fix:**
+- ✅ Inject version via ldflags (`-X main.Version`)
+- ✅ Binary names now include version: `usipipo-agent-v0.9.0-{os}-{arch}`
+- ✅ Artifact names and release archives include version tag
+
+---
+
 ## [0.8.2] - 2026-04-05
 
 ### 🐛 Bug Fixes
