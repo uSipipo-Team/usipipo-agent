@@ -57,8 +57,8 @@ func (c *WireGuardMetricsCollector) GetPeerMetrics() (*WireGuardPeerMetrics, err
 	for _, peer := range device.Peers {
 		detail := PeerDetail{
 			PublicKey:     peer.PublicKey.String(),
-			BytesReceived: peer.ReceiveBytes,
-			BytesSent:     peer.TransmitBytes,
+			BytesReceived: uint64(peer.ReceiveBytes),
+			BytesSent:     uint64(peer.TransmitBytes),
 			LastHandshake: peer.LastHandshakeTime,
 			AllowedIPs:    make([]string, len(peer.AllowedIPs)),
 		}
