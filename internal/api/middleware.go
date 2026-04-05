@@ -76,7 +76,7 @@ func HybridRateLimitMiddleware(rl *HybridRateLimiter) gin.HandlerFunc {
 			c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{
 				"error": "Rate limit exceeded. Please try again later.",
 			})
-			
+
 			// Log rate limit exceeded
 			if securityLogger != nil {
 				securityLogger.LogRateLimitExceeded(ip, c.Request.URL.Path, rl.config.RequestsPerSecond)
@@ -103,7 +103,7 @@ func APIKeyMiddlewareWithRateLimit(validKey string, rl *HybridRateLimiter) gin.H
 			if securityLogger != nil {
 				securityLogger.LogAuthFailure(c.ClientIP(), c.Request.URL.Path, "missing_key", c.Request.UserAgent())
 			}
-			
+
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
 				"error": "Missing API key",
 			})
@@ -116,7 +116,7 @@ func APIKeyMiddlewareWithRateLimit(validKey string, rl *HybridRateLimiter) gin.H
 			if securityLogger != nil {
 				securityLogger.LogAuthFailure(c.ClientIP(), c.Request.URL.Path, "invalid_format", c.Request.UserAgent())
 			}
-			
+
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
 				"error": "Invalid API key format",
 			})
@@ -132,7 +132,7 @@ func APIKeyMiddlewareWithRateLimit(validKey string, rl *HybridRateLimiter) gin.H
 				if securityLogger != nil {
 					securityLogger.LogAuthFailure(c.ClientIP(), c.Request.URL.Path, "invalid_key", c.Request.UserAgent())
 				}
-				
+
 				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
 					"error": "Invalid API key",
 				})
@@ -145,7 +145,7 @@ func APIKeyMiddlewareWithRateLimit(validKey string, rl *HybridRateLimiter) gin.H
 				if securityLogger != nil {
 					securityLogger.LogAuthFailure(c.ClientIP(), c.Request.URL.Path, "invalid_key", c.Request.UserAgent())
 				}
-				
+
 				c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
 					"error": "Invalid API key",
 				})
@@ -187,7 +187,7 @@ func APIKeyMiddleware(validKey string) gin.HandlerFunc {
 			if securityLogger != nil {
 				securityLogger.LogAuthFailure(c.ClientIP(), c.Request.URL.Path, "missing_key", c.Request.UserAgent())
 			}
-			
+
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
 				"error": "Missing API key",
 			})
@@ -199,7 +199,7 @@ func APIKeyMiddleware(validKey string) gin.HandlerFunc {
 			if securityLogger != nil {
 				securityLogger.LogAuthFailure(c.ClientIP(), c.Request.URL.Path, "invalid_key", c.Request.UserAgent())
 			}
-			
+
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{
 				"error": "Invalid API key",
 			})

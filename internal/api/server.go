@@ -98,7 +98,7 @@ type Server struct {
 	router     *gin.Engine
 }
 
-// NewServer creates a new HTTP server with Gin and rate limiting
+// NewServer creates a new HTTP server with Gin and hybrid rate limiting
 func NewServer(apiKey, outlineAPIURL string, rateConfig RateLimiterConfig) *Server {
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.New()
@@ -114,27 +114,38 @@ func NewServer(apiKey, outlineAPIURL string, rateConfig RateLimiterConfig) *Serv
 		MaxAge:           12 * time.Hour,
 	}))
 
-	// Rate limiting
-	rateLimiter := NewRateLimiter(rateConfig)
+	// Hybrid rate limiting configuration
+	hybridConfig := &HybridRateLimiterConfig{
+		Enabled:           rateConfig.Enabled,
+		RequestsPerSecond: rateConfig.RequestsPerSecond,
+		BurstSize:         rateConfig.BurstSize,
+		AuthRPS:           3.0,  // Stricter for auth endpoints
+		AuthBurst:         5,
+		KeyRPS:            100.0, // Per-API-key limit
+		KeyBurst:          200,
+		LockoutThreshold:  10,    // 10 failed attempts
+		LockoutDuration:   5 * time.Minute,
+		BackoffBase:       1 * time.Second,
+		BackoffMax:        30 * time.Second,
+		CleanupInterval:   1 * time.Minute,
+		EntryTTL:          3 * time.Minute,
+	}
 
-	// Start cleanup goroutine
-	go func() {
-		ticker := time.NewTicker(1 * time.Minute)
-		defer ticker.Stop()
-		for range ticker.C {
-			rateLimiter.Cleanup()
-		}
-	}()
+	// Create hybrid rate limiter
+	hybridRateLimiter := NewHybridRateLimiter(hybridConfig)
 
-	// Apply rate limiting to all routes
-	router.Use(RateLimitMiddleware(rateLimiter))
+	// Apply auth failure tracking middleware (before rate limiting)
+	router.Use(AuthFailureMiddleware(hybridRateLimiter))
+
+	// Apply hybrid rate limiting to all routes
+	router.Use(HybridRateLimitMiddleware(hybridRateLimiter))
 
 	// Public routes
 	router.GET("/health", HealthHandler)
 
 	// Protected routes
 	protected := router.Group("/")
-	protected.Use(APIKeyMiddleware(apiKey))
+	protected.Use(APIKeyMiddlewareWithRateLimit(apiKey, hybridRateLimiter))
 	{
 		protected.GET("/status", StatusHandler)
 		protected.GET("/metrics", MetricsHandler)
