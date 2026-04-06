@@ -172,6 +172,7 @@ func (c *TrustTunnelClient) ExportClientConfig(username string) (string, error) 
 		fmt.Sprintf("%s/hosts.toml", c.configDir),
 		"-c", username,
 		"-a", addr,
+		"-f", "toml",
 	)
 
 	output, err := cmd.CombinedOutput()
