@@ -160,6 +160,15 @@ func NewServer(apiKey, outlineAPIURL string, rateConfig RateLimiterConfig) *Serv
 		protected.DELETE("/wireguard/peers/:name", DeleteWireGuardPeerHandler)
 		protected.GET("/wireguard/peers/:name/usage", GetWireGuardPeerUsageHandler)
 		protected.POST("/wireguard/peers/:name/regenerate", RegenerateWireGuardPeerHandler)
+
+		// TrustTunnel VPN management routes
+		protected.POST("/trusttunnel/clients", CreateTrustTunnelClientHandler)
+		protected.DELETE("/trusttunnel/clients/:username", DeleteTrustTunnelClientHandler)
+		protected.GET("/trusttunnel/clients", ListTrustTunnelClientsHandler)
+		protected.POST("/trusttunnel/clients/:username/export", ExportTrustTunnelClientHandler)
+		protected.GET("/trusttunnel/metrics", GetTrustTunnelMetricsHandler)
+		protected.POST("/trusttunnel/rules", AddTrustTunnelRuleHandler)
+		protected.DELETE("/trusttunnel/rules", RemoveTrustTunnelRuleHandler)
 	}
 
 	return &Server{
