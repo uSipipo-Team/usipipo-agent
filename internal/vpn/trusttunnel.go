@@ -267,13 +267,13 @@ func (c *TrustTunnelClient) readClients() ([]ClientCredential, error) {
 		return nil, err
 	}
 
-	if len(strings.TrimSpace(string(content))) == 0 {
-		return []ClientCredential{}, nil
-	}
-
 	var creds CredentialsFile
 	if err := toml.Unmarshal(content, &creds); err != nil {
 		return nil, fmt.Errorf("failed to parse credentials.toml: %w", err)
+	}
+
+	if creds.Client == nil {
+		return []ClientCredential{}, nil
 	}
 
 	return creds.Client, nil
@@ -306,13 +306,13 @@ func (c *TrustTunnelClient) readRules() ([]AccessRule, error) {
 		return nil, err
 	}
 
-	if len(strings.TrimSpace(string(content))) == 0 {
-		return []AccessRule{}, nil
-	}
-
 	var rules RulesFile
 	if err := toml.Unmarshal(content, &rules); err != nil {
 		return nil, fmt.Errorf("failed to parse rules.toml: %w", err)
+	}
+
+	if rules.Rule == nil {
+		return []AccessRule{}, nil
 	}
 
 	return rules.Rule, nil
