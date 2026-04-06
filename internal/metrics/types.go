@@ -22,6 +22,10 @@ type VPNMetrics struct {
 		ActivePeers         int    `json:"active_peers"`
 		TotalBytesTransferred uint64 `json:"total_bytes_transferred"`
 	} `json:"wireguard"`
+	TrustTunnel struct {
+		ActiveClients         int    `json:"active_clients"`
+		TotalBytesTransferred uint64 `json:"total_bytes_transferred"`
+	} `json:"trusttunnel"`
 }
 
 // LatencyMetrics represents latency measurements

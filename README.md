@@ -53,7 +53,22 @@ The VPN Agent runs on each VPS server worldwide, providing:
 ### VPN Management
 - ✅ **Outline Manager Integration** - Create/delete Shadowsocks keys via Outline API
 - ✅ **WireGuard Integration** - Create/delete peers via `wg` commands
-- ✅ **Trust Tunnel Support** - AdGuard VPN integration (planned)
+- ✅ **Trust Tunnel Support** - AdGuard VPN client management
+
+### TrustTunnel Support
+
+The agent supports TrustTunnel (AdGuard anti-censorship VPN) client management:
+
+- Create/delete clients via `credentials.toml`
+- Export client configurations via CLI
+- Collect metrics from Prometheus endpoint
+- Manage access rules via `rules.toml`
+
+Configuration:
+- `TRUSTTUNNEL_BINARY` - Path to trusttunnel_endpoint binary
+- `TRUSTTUNNEL_CONFIG_DIR` - Directory containing config files
+- `TRUSTTUNNEL_DOMAIN` - Public domain for client endpoint
+- `TRUSTTUNNEL_PORT` - Listening port (default: 8443)
 
 ### Metrics & Monitoring
 - ✅ **System Metrics** - CPU, memory, disk, network usage
@@ -113,6 +128,10 @@ go build -o agent ./cmd/agent
 | `SERVER_ID` | Server identifier (UUID) | - | **Yes** |
 | `OUTLINE_API_URL` | Outline Manager API URL | `http://localhost:8081` | No |
 | `WG_INTERFACE` | WireGuard interface name | `wg0` | No |
+| `TRUSTTUNNEL_BINARY` | Path to trusttunnel_endpoint binary | - | No |
+| `TRUSTTUNNEL_CONFIG_DIR` | Directory containing TrustTunnel configs | - | No |
+| `TRUSTTUNNEL_DOMAIN` | Public domain for TrustTunnel endpoint | - | No |
+| `TRUSTTUNNEL_PORT` | TrustTunnel listening port | `8443` | No |
 
 ### Example `.env` File
 
@@ -149,6 +168,9 @@ WG_INTERFACE=wg0
 | `POST` | `/wireguard/peers` | Create WireGuard peer |
 | `DELETE` | `/wireguard/peers/:name` | Delete WireGuard peer |
 | `GET` | `/wireguard/peers/:name/usage` | Get peer usage stats |
+| `POST` | `/trusttunnel/clients` | Create TrustTunnel client |
+| `DELETE` | `/trusttunnel/clients/:id` | Delete TrustTunnel client |
+| `GET` | `/trusttunnel/clients/:id/config` | Export client configuration |
 
 ### Example Usage
 
@@ -369,7 +391,6 @@ Backend provides dashboards for:
 ## 🚧 Roadmap
 
 ### Q2 2026
-- [ ] Trust Tunnel (AdGuard) integration
 - [ ] Docker container support
 - [ ] Automatic failover between servers
 - [ ] Real-time latency monitoring

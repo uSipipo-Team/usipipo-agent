@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -72,6 +73,27 @@ func main() {
 	// Initialize WireGuard metrics collector
 	wireguardMetricsCollector := vpn.NewWireGuardMetricsCollector(cfg.WireGuardInterface)
 	metricsCollector.SetWireGuardCollector(wireguardMetricsCollector)
+
+	// Initialize TrustTunnel client
+	if _, err := os.Stat(cfg.TrustTunnelBinary); err == nil {
+		trustTunnelClient := vpn.NewTrustTunnelClient(
+			cfg.TrustTunnelBinary,
+			cfg.TrustTunnelConfigDir,
+			cfg.TrustTunnelDomain,
+			cfg.TrustTunnelPort,
+		)
+		api.SetTrustTunnelClient(trustTunnelClient)
+		log.Printf("TrustTunnel client initialized (binary: %s, domain: %s:%d)",
+			cfg.TrustTunnelBinary, cfg.TrustTunnelDomain, cfg.TrustTunnelPort)
+	} else {
+		log.Printf("TrustTunnel binary not found at %s - TrustTunnel features disabled", cfg.TrustTunnelBinary)
+	}
+
+	// Initialize TrustTunnel metrics collector
+	ttMetricsURL := fmt.Sprintf("http://127.0.0.1:1987/metrics")
+	trustTunnelMetricsCollector := vpn.NewTrustTunnelMetricsCollector(ttMetricsURL)
+	api.SetTrustTunnelMetricsCollector(trustTunnelMetricsCollector)
+	metricsCollector.SetTrustTunnelCollector(trustTunnelMetricsCollector)
 
 	// Create HTTP server with rate limiting
 	rateConfig := api.RateLimiterConfig{
