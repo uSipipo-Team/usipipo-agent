@@ -31,6 +31,10 @@ type Config struct {
 	RateLimitRPS          float64
 	RateLimitBurst        int
 	HTTPClientTimeout     time.Duration
+	TrustTunnelBinary     string
+	TrustTunnelConfigDir  string
+	TrustTunnelDomain     string
+	TrustTunnelPort       int
 }
 
 // Load loads configuration from environment variables
@@ -98,6 +102,18 @@ func Load() *Config {
 		log.Println("   This is INSECURE for production use and should only be used for development")
 		log.Println("   with self-signed certificates. Set OUTLINE_VERIFY_SSL=true for secure operation.")
 	}
+
+	// Parse TrustTunnel port
+	ttPort, err := strconv.Atoi(getEnv("TRUSTTUNNEL_PORT", "8443"))
+	if err != nil || ttPort < 1 || ttPort > 65535 {
+		log.Printf("WARNING: Invalid TRUSTTUNNEL_PORT '%s'. Using default 8443", getEnv("TRUSTTUNNEL_PORT", "8443"))
+		ttPort = 8443
+	}
+
+	cfg.TrustTunnelBinary = getEnv("TRUSTTUNNEL_BINARY", "/opt/trusttunnel/trusttunnel_endpoint")
+	cfg.TrustTunnelConfigDir = getEnv("TRUSTTUNNEL_CONFIG_DIR", "/opt/trusttunnel")
+	cfg.TrustTunnelDomain = getEnv("TRUSTTUNNEL_DOMAIN", "usipipotunnel.duckdns.org")
+	cfg.TrustTunnelPort = ttPort
 
 	return cfg
 }
