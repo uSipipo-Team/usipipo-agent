@@ -287,6 +287,12 @@ func (c *TrustTunnelClient) writeClients(clients []ClientCredential) error {
 		return fmt.Errorf("failed to marshal credentials.toml: %w", err)
 	}
 
+	// go-toml/v2 serializes strings with single quotes by default,
+	// but the TrustTunnel CLI (Rust toml_edit) requires double quotes.
+	// Replace single quotes with double quotes in the output.
+	contentStr := strings.ReplaceAll(string(content), "'", "\"")
+	content = []byte(contentStr)
+
 	tmpPath := c.credsPath + ".tmp"
 	if err := os.WriteFile(tmpPath, content, 0600); err != nil {
 		return fmt.Errorf("failed to write temp file: %w", err)
