@@ -46,9 +46,10 @@ func TestTrustTunnelClient_CreateClient_Success(t *testing.T) {
 
 	content, err := os.ReadFile(client.credsPath)
 	assert.NoError(t, err)
+	// go-toml/v2 uses single quotes by default
 	assert.Contains(t, string(content), `[[client]]`)
-	assert.Contains(t, string(content), `username = "user1"`)
-	assert.Contains(t, string(content), `password = "secure_password_1"`)
+	assert.Contains(t, string(content), `username = 'user1'`)
+	assert.Contains(t, string(content), `password = 'secure_password_1'`)
 }
 
 func TestTrustTunnelClient_CreateClient_Duplicate(t *testing.T) {
@@ -119,8 +120,9 @@ func TestTrustTunnelClient_AddRule(t *testing.T) {
 
 	content, _ := os.ReadFile(client.rulesPath)
 	assert.Contains(t, string(content), `[[rule]]`)
-	assert.Contains(t, string(content), `cidr = "192.168.1.0/24"`)
-	assert.Contains(t, string(content), `action = "deny"`)
+	// go-toml/v2 uses single quotes by default
+	assert.Contains(t, string(content), `cidr = '192.168.1.0/24'`)
+	assert.Contains(t, string(content), `action = 'deny'`)
 }
 
 func TestTrustTunnelClient_RemoveRule(t *testing.T) {
