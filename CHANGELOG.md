@@ -7,6 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.11.0] - 2026-04-06
+
+### ✨ Added
+
+**TrustTunnel Integration (PR #61):**
+- ✅ `TrustTunnelClient` - Client management via file-based operations (credentials.toml, rules.toml)
+- ✅ Create/delete/list clients with username validation (3-50 chars, alphanumeric, hyphens, underscores)
+- ✅ Export client configurations via trusttunnel_endpoint CLI
+- ✅ Access rules management (CIDR-based and client_random_prefix-based rules)
+- ✅ `TrustTunnelMetricsCollector` - Prometheus metrics parser for per-client bytes and active clients
+- ✅ SIGHUP reload for TLS host configuration
+- ✅ 7 new API endpoints under `/trusttunnel/`
+- ✅ 14 unit tests (9 client + 2 metrics + 3 config)
+- ✅ Atomic file writes (temp + rename) with file locking
+- ✅ Idempotent delete operations
+
+### 🔌 New API Endpoints
+
+- `POST /trusttunnel/clients` - Create TrustTunnel client
+- `DELETE /trusttunnel/clients/:username` - Delete client (idempotent)
+- `GET /trusttunnel/clients` - List all clients
+- `POST /trusttunnel/clients/:username/export` - Export client configuration
+- `GET /trusttunnel/metrics` - Get TrustTunnel metrics
+- `POST /trusttunnel/rules` - Add access rule
+- `DELETE /trusttunnel/rules` - Remove access rule
+
+### 📝 Configuration
+
+- `TRUSTTUNNEL_BINARY` - Path to trusttunnel_endpoint binary (default: /opt/trusttunnel/trusttunnel_endpoint)
+- `TRUSTTUNNEL_CONFIG_DIR` - Config directory (default: /opt/trusttunnel)
+- `TRUSTTUNNEL_DOMAIN` - Public domain (default: usipipotunnel.duckdns.org)
+- `TRUSTTUNNEL_PORT` - Listening port (default: 8443)
+
+### 📊 Technical Details
+
+- **Files Created:** 5 files (trusttunnel.go, trusttunnel_test.go, trusttunnel_metrics.go, trusttunnel_metrics_test.go, config_test.go)
+- **Files Modified:** 7 files (config.go, handlers.go, server.go, types.go, collector.go, main.go, .env.example, README.md, CHANGELOG.md)
+- **Tests:** 14 new tests (100% passing)
+
+---
+
 ## [0.10.0] - 2026-04-05
 
 ### ✨ Added
