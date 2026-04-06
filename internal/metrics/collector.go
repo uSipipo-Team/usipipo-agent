@@ -26,6 +26,7 @@ type Collector struct {
 	detailedCacheTime     time.Time
 	detailedTTL           time.Duration // 1 hour
 	wgCollector           *vpn.WireGuardMetricsCollector
+	ttCollector           *vpn.TrustTunnelMetricsCollector
 }
 
 // NewCollector creates a new metrics collector
@@ -41,6 +42,11 @@ func NewCollector(serverID string) *Collector {
 // SetWireGuardCollector sets the WireGuard metrics collector
 func (c *Collector) SetWireGuardCollector(wgCollector *vpn.WireGuardMetricsCollector) {
 	c.wgCollector = wgCollector
+}
+
+// SetTrustTunnelCollector sets the TrustTunnel metrics collector
+func (c *Collector) SetTrustTunnelCollector(ttCollector *vpn.TrustTunnelMetricsCollector) {
+	c.ttCollector = ttCollector
 }
 
 // GetMetrics returns current metrics (cached for cacheTTL duration)
@@ -110,6 +116,17 @@ func (c *Collector) GetMetrics(ctx context.Context) (*ServerMetrics, error) {
 			if totalBytes, ok := wgMetrics["total_bytes"].(uint64); ok {
 				metrics.VPN.WireGuard.TotalBytesTransferred = totalBytes
 			}
+		}
+	}
+
+	// Collect TrustTunnel metrics if collector is available
+	if c.ttCollector != nil {
+		ttMetrics, err := c.ttCollector.GetMetrics()
+		if err != nil {
+			// Log error but continue - TrustTunnel metrics are optional
+		} else {
+			metrics.VPN.TrustTunnel.ActiveClients = ttMetrics.ActiveClients
+			metrics.VPN.TrustTunnel.TotalBytesTransferred = ttMetrics.TotalBytesTransferred
 		}
 	}
 
