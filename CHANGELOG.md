@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.11.2] - 2026-04-06
+
+### Fixed
+- **TrustTunnel TOML Serialization** — `go-toml/v2` writes single quotes but TrustTunnel CLI (Rust `toml_edit`) requires double quotes
+  - Added string replacement in `writeClients()` to convert `'` → `"`
+  - Fixes "no user config for specified username" error on config export
+
+### Technical Details
+- **Files Modified:** 1 (`internal/vpn/trusttunnel.go`)
+- **Lines Added:** 6
+- **Tests:** Existing TrustTunnel tests pass (format-only change)
+
+---
+
 ## [0.11.0] - 2026-04-06
 
 ### ✨ Added
