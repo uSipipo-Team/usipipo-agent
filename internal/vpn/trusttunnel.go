@@ -13,13 +13,14 @@ import (
 
 // TrustTunnelClient handles TrustTunnel client management
 type TrustTunnelClient struct {
-	binaryPath string
-	configDir  string
-	domain     string
-	port       int
-	credsPath  string
-	rulesPath  string
-	fileLock   sync.Mutex
+	binaryPath  string
+	configDir   string
+	domain      string
+	port        int
+	publicPort  int
+	credsPath   string
+	rulesPath   string
+	fileLock    sync.Mutex
 }
 
 // CredentialsFile represents the credentials.toml structure
@@ -46,14 +47,15 @@ type AccessRule struct {
 }
 
 // NewTrustTunnelClient creates a new TrustTunnel client
-func NewTrustTunnelClient(binaryPath, configDir, domain string, port int) *TrustTunnelClient {
+func NewTrustTunnelClient(binaryPath, configDir, domain string, port, publicPort int) *TrustTunnelClient {
 	return &TrustTunnelClient{
-		binaryPath: binaryPath,
-		configDir:  configDir,
-		domain:     domain,
-		port:       port,
-		credsPath:  fmt.Sprintf("%s/credentials.toml", configDir),
-		rulesPath:  fmt.Sprintf("%s/rules.toml", configDir),
+		binaryPath:  binaryPath,
+		configDir:   configDir,
+		domain:      domain,
+		port:        port,
+		publicPort:  publicPort,
+		credsPath:   fmt.Sprintf("%s/credentials.toml", configDir),
+		rulesPath:   fmt.Sprintf("%s/rules.toml", configDir),
 	}
 }
 
@@ -201,7 +203,7 @@ func (c *TrustTunnelClient) ExportClientDeeplink(username string) (string, error
 		return "", fmt.Errorf("client not found: %s", username)
 	}
 
-	addr := fmt.Sprintf("%s:%d", c.domain, c.port)
+	addr := fmt.Sprintf("%s:%d", c.domain, c.publicPort)
 	cmd := exec.Command(c.binaryPath,
 		fmt.Sprintf("%s/vpn.toml", c.configDir),
 		fmt.Sprintf("%s/hosts.toml", c.configDir),
