@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.11.4] - 2026-04-06
+
+### Added
+- **TrustTunnel Deep Link Export** — New endpoint `POST /trusttunnel/clients/:username/export-deeplink` generates `tt://` URI for mobile client configuration
+  - Added `ExportClientDeeplink()` method to `TrustTunnelClient`
+  - Uses `-f deeplink` flag with `trusttunnel_endpoint` CLI
+  - Returns compact `tt://?` URI suitable for QR codes and mobile apps
+
+### Technical Details
+- **Files Modified:** 3 (`internal/vpn/trusttunnel.go`, `internal/api/handlers.go`, `internal/api/server.go`)
+- **Files Added:** 2 tests in `internal/vpn/trusttunnel_test.go`
+- **New Endpoint:** `POST /trusttunnel/clients/:username/export-deeplink`
+
+---
+
 ## [0.11.2] - 2026-04-06
 
 ### Fixed

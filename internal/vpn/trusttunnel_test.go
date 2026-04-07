@@ -144,3 +144,28 @@ func TestTrustTunnelClient_RemoveRule_NotFound(t *testing.T) {
 	err := client.RemoveRule("nonexistent", "")
 	assert.NoError(t, err)
 }
+
+func TestTrustTunnelClient_ExportClientDeeplink_NotFound(t *testing.T) {
+	client, cleanup := setupTestTrustTunnel(t)
+	defer cleanup()
+
+	// Without the binary, this will fail — verify error handling for non-existent client
+	_, err := client.ExportClientDeeplink("nonexistent")
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "client not found")
+}
+
+func TestTrustTunnelClient_ExportClientDeeplink_BinaryMissing(t *testing.T) {
+	client, cleanup := setupTestTrustTunnel(t)
+	defer cleanup()
+
+	// Create a valid client first
+	err := client.CreateClient("testuser", "password123")
+	require.NoError(t, err)
+
+	// Without the actual binary, export should fail with appropriate error
+	_, err = client.ExportClientDeeplink("testuser")
+	assert.Error(t, err)
+	// Error should mention binary failure or command execution issue
+	assert.NotEmpty(t, err.Error())
+}
