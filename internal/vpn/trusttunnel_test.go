@@ -22,12 +22,13 @@ func setupTestTrustTunnel(t *testing.T) (*TrustTunnelClient, func()) {
 	require.NoError(t, err)
 
 	client := &TrustTunnelClient{
-		binaryPath: "/usr/bin/trusttunnel_endpoint",
-		configDir:  tmpDir,
-		domain:     "test.duckdns.org",
-		port:       8443,
-		credsPath:  credsPath,
-		rulesPath:  rulesPath,
+		binaryPath:  "/usr/bin/trusttunnel_endpoint",
+		configDir:   tmpDir,
+		domain:      "test.duckdns.org",
+		port:        8443,
+		publicPort:  443,
+		credsPath:   credsPath,
+		rulesPath:   rulesPath,
 	}
 
 	cleanup := func() {

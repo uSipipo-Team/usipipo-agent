@@ -81,10 +81,11 @@ func main() {
 			cfg.TrustTunnelConfigDir,
 			cfg.TrustTunnelDomain,
 			cfg.TrustTunnelPort,
+			cfg.TrustTunnelPublicPort,
 		)
 		api.SetTrustTunnelClient(trustTunnelClient)
-		log.Printf("TrustTunnel client initialized (binary: %s, domain: %s:%d)",
-			cfg.TrustTunnelBinary, cfg.TrustTunnelDomain, cfg.TrustTunnelPort)
+		log.Printf("TrustTunnel client initialized (binary: %s, domain: %s:%d, public: %d)",
+			cfg.TrustTunnelBinary, cfg.TrustTunnelDomain, cfg.TrustTunnelPort, cfg.TrustTunnelPublicPort)
 	} else {
 		log.Printf("TrustTunnel binary not found at %s - TrustTunnel features disabled", cfg.TrustTunnelBinary)
 	}

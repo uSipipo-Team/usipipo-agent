@@ -35,6 +35,7 @@ type Config struct {
 	TrustTunnelConfigDir  string
 	TrustTunnelDomain     string
 	TrustTunnelPort       int
+	TrustTunnelPublicPort int
 }
 
 // Load loads configuration from environment variables
@@ -114,6 +115,10 @@ func Load() *Config {
 	cfg.TrustTunnelConfigDir = getEnv("TRUSTTUNNEL_CONFIG_DIR", "/opt/trusttunnel")
 	cfg.TrustTunnelDomain = getEnv("TRUSTTUNNEL_DOMAIN", "usipipotunnel.duckdns.org")
 	cfg.TrustTunnelPort = ttPort
+	cfg.TrustTunnelPublicPort, _ = strconv.Atoi(getEnv("TRUSTTUNNEL_PUBLIC_PORT", "443"))
+	if cfg.TrustTunnelPublicPort == 0 {
+		cfg.TrustTunnelPublicPort = 443
+	}
 
 	return cfg
 }
