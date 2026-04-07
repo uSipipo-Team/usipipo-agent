@@ -183,6 +183,41 @@ func (c *TrustTunnelClient) ExportClientConfig(username string) (string, error) 
 	return string(output), nil
 }
 
+// ExportClientDeeplink generates a deep-link (tt://) URI for mobile client configuration
+func (c *TrustTunnelClient) ExportClientDeeplink(username string) (string, error) {
+	clients, err := c.ListClients()
+	if err != nil {
+		return "", err
+	}
+
+	found := false
+	for _, name := range clients {
+		if name == username {
+			found = true
+			break
+		}
+	}
+	if !found {
+		return "", fmt.Errorf("client not found: %s", username)
+	}
+
+	addr := fmt.Sprintf("%s:%d", c.domain, c.port)
+	cmd := exec.Command(c.binaryPath,
+		fmt.Sprintf("%s/vpn.toml", c.configDir),
+		fmt.Sprintf("%s/hosts.toml", c.configDir),
+		"-c", username,
+		"-a", addr,
+		"-f", "deeplink",
+	)
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return "", fmt.Errorf("failed to export deeplink: %w, stderr: %s", err, string(output))
+	}
+
+	return strings.TrimSpace(string(output)), nil
+}
+
 // AddRule adds an access rule to rules.toml
 func (c *TrustTunnelClient) AddRule(cidr, prefix, action string) error {
 	c.fileLock.Lock()

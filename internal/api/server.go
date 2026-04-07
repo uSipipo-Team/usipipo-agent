@@ -166,6 +166,7 @@ func NewServer(apiKey, outlineAPIURL string, rateConfig RateLimiterConfig) *Serv
 		protected.DELETE("/trusttunnel/clients/:username", DeleteTrustTunnelClientHandler)
 		protected.GET("/trusttunnel/clients", ListTrustTunnelClientsHandler)
 		protected.POST("/trusttunnel/clients/:username/export", ExportTrustTunnelClientHandler)
+		protected.POST("/trusttunnel/clients/:username/export-deeplink", ExportTrustTunnelDeeplinkHandler)
 		protected.GET("/trusttunnel/metrics", GetTrustTunnelMetricsHandler)
 		protected.POST("/trusttunnel/rules", AddTrustTunnelRuleHandler)
 		protected.DELETE("/trusttunnel/rules", RemoveTrustTunnelRuleHandler)

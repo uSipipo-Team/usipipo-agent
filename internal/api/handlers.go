@@ -462,6 +462,29 @@ func ExportTrustTunnelClientHandler(c *gin.Context) {
 	})
 }
 
+// ExportTrustTunnelDeeplinkHandler exports a TrustTunnel client configuration as deep link
+func ExportTrustTunnelDeeplinkHandler(c *gin.Context) {
+	if trusttunnelClient == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "TrustTunnel client not initialized",
+		})
+		return
+	}
+
+	username := c.Param("username")
+
+	deeplink, err := trusttunnelClient.ExportClientDeeplink(username)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"username": username,
+		"deeplink": deeplink,
+	})
+}
+
 // GetTrustTunnelMetricsHandler returns TrustTunnel metrics
 func GetTrustTunnelMetricsHandler(c *gin.Context) {
 	if trusttunnelMetricsCollector == nil {
