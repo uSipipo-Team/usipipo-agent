@@ -12,6 +12,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"errors"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -107,10 +108,10 @@ func init() {
 
 func main() {
 	if err := rootCmd.Execute(); err != nil {
-		if err == context.Canceled || err == context.DeadlineExceeded {
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 			os.Exit(2)
 		}
-		printError("%v", err)
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
 }
