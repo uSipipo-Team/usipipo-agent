@@ -47,10 +47,10 @@ func TestTrustTunnelClient_CreateClient_Success(t *testing.T) {
 
 	content, err := os.ReadFile(client.credsPath)
 	assert.NoError(t, err)
-	// go-toml/v2 uses single quotes by default
+	// go-toml/v2 uses double quotes after string replacement
 	assert.Contains(t, string(content), `[[client]]`)
-	assert.Contains(t, string(content), `username = 'user1'`)
-	assert.Contains(t, string(content), `password = 'secure_password_1'`)
+	assert.Contains(t, string(content), `username = "user1"`)
+	assert.Contains(t, string(content), `password = "secure_password_1"`)
 }
 
 func TestTrustTunnelClient_CreateClient_Duplicate(t *testing.T) {
