@@ -132,7 +132,10 @@ func (c *TrustTunnelClient) DeleteClient(username string) error {
 	return c.writeClients(filtered)
 }
 
-// ListClients returns all client usernames
+// ListClients returns all client usernames (deprecated)
+// TrustTunnel CLI does not provide native user list command.
+// This function exists for API completeness but is not usable in practice.
+// Consider removing in future if no alternative is found.
 func (c *TrustTunnelClient) ListClients() ([]string, error) {
 	c.fileLock.Lock()
 	defer c.fileLock.Unlock()

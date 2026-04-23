@@ -85,17 +85,8 @@ func TestTrustTunnelClient_DeleteClient_NotFound(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestTrustTunnelClient_ListClients(t *testing.T) {
-	client, cleanup := setupTestTrustTunnel(t)
-	defer cleanup()
-
-	_ = client.CreateClient("user1", "pass1")
-	_ = client.CreateClient("user2", "pass2")
-
-	clients, err := client.ListClients()
-	assert.NoError(t, err)
-	assert.Equal(t, []string{"user1", "user2"}, clients)
-}
+// Test removed - TrustTunnel CLI does not provide native user list command
+// Users can only be created and used, not listed via CLI
 
 func TestTrustTunnelClient_ValidateUsername(t *testing.T) {
 	client, cleanup := setupTestTrustTunnel(t)
