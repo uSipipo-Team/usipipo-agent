@@ -327,6 +327,14 @@ func (c *TrustTunnelClient) readClients() ([]ClientCredential, error) {
 
 func (c *TrustTunnelClient) writeClients(clients []ClientCredential) error {
 
+	// Handle empty client list - write nothing (don't create empty table)
+	if len(clients) == 0 {
+		if err := os.WriteFile(c.credsPath, []byte(""), 0600); err != nil {
+			return fmt.Errorf("failed to write empty credentials file: %w", err)
+		}
+		return nil
+	}
+
 	// Use a more targeted approach: build TOML manually with double quotes
 	// This avoids the issues with go-toml/v2 using single quotes and
 	// the naive string replacement causing parsing issues
