@@ -79,12 +79,15 @@ Examples:
 
   # Import peer to database
   wg-ip-allocation import-peer --server-id 550e8400-e29b-41d4-a716-446655440000 --pubkey ABCDEF...= --ip 10.88.88.50`,
-		PersistentFlags: func(f *cobra.Command) {
-			f.StringVar(&cfg.BackendAPIURL, "api-url", "", "Backend API URL (env: BACKEND_API_URL)")
-			f.StringVar(&cfg.BackendAPIKey, "api-key", "", "Backend API Key (env: BACKEND_API_KEY)")
-			f.BoolVar(&cfg.DryRun, "dry-run", false, "Show what would be done without making changes")
-			f.BoolVar(&cfg.JSONOutput, "json", false, "Output in JSON format")
-		},
+	}
+}
+
+// init registers persistent flags for the root command
+func init() {
+	rootCmd.PersistentFlags().StringVar(&cfg.BackendAPIURL, "api-url", "", "Backend API URL (env: BACKEND_API_URL)")
+	rootCmd.PersistentFlags().StringVar(&cfg.BackendAPIKey, "api-key", "", "Backend API Key (env: BACKEND_API_KEY)")
+	rootCmd.PersistentFlags().BoolVar(&cfg.DryRun, "dry-run", false, "Show what would be done without making changes")
+	rootCmd.PersistentFlags().BoolVar(&cfg.JSONOutput, "json", false, "Output in JSON format")
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
 			cfg.BackendAPIURL = viper.GetString("API_URL")
 			cfg.BackendAPIKey = viper.GetString("API_KEY")

@@ -230,6 +230,7 @@ func (r *ReconciliationLoop) getDBPeers() (map[string]peerInfo, error) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
+	_ = ctx // Used for context-aware operations in future iterations
 
 	// Query all leases - we'll need to add this endpoint or iterate through known leases
 	// For now, return empty if no query method exists
@@ -319,6 +320,7 @@ func (r *ReconciliationLoop) healOrphan(kernelPeer peerInfo) error {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
+	_ = ctx // Used for context-aware operations in future iterations
 
 	// Find the peer name from config
 	name := kernelPeer.name
@@ -364,6 +366,7 @@ func (r *ReconciliationLoop) healStaleDBEntry(dbPeer peerInfo) error {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
+	_ = ctx // Used for context-aware operations in future iterations
 
 	// Try to find lease ID by public key
 	leaseID := dbPeer.name // This would be the lease_id in a real implementation
@@ -391,6 +394,7 @@ func (r *ReconciliationLoop) healIPMismatch(dbPeer peerInfo, kernelIP string) er
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
+	_ = ctx // Used for context-aware operations in future iterations
 
 	leaseID := dbPeer.name // This would be the lease_id in a real implementation
 	if leaseID == "" {
@@ -419,6 +423,7 @@ func (r *ReconciliationLoop) healUnconfirmed(dbPeer peerInfo) error {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
+	_ = ctx // Used for context-aware operations in future iterations
 
 	leaseID := dbPeer.name // This would be the lease_id in a real implementation
 	if leaseID == "" {
