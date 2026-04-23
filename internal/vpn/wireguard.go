@@ -614,11 +614,11 @@ func (c *WireGuardClient) buildIP(lastOctet int) string {
 	_, ipNet, err := net.ParseCIDR(c.networkCIDR)
 	if err != nil {
 		// Fallback
-		return fmt.Sprintf("10.88.88.%d", lastOctet)
+		return "10.88.88." + strconv.Itoa(lastOctet)
 	}
 	base := ipNet.IP.To4()
 	if base == nil {
-		return fmt.Sprintf("10.88.88.%d", lastOctet)
+		return "10.88.88." + strconv.Itoa(lastOctet)
 	}
 	return fmt.Sprintf("%d.%d.%d.%d", base[0], base[1], base[2], lastOctet)
 }

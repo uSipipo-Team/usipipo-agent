@@ -173,8 +173,8 @@ func (c *TrustTunnelClient) ExportClientConfig(username string) (string, error) 
 
 	addr := fmt.Sprintf("%s:%d", c.domain, c.port)
 	cmd := exec.Command(c.binaryPath,
-		fmt.Sprintf("%s/vpn.toml", c.configDir),
-		fmt.Sprintf("%s/hosts.toml", c.configDir),
+		c.configDir+"/vpn.toml",
+		c.configDir+"/hosts.toml",
 		"-c", username,
 		"-a", addr,
 		"-f", "toml",
@@ -208,8 +208,8 @@ func (c *TrustTunnelClient) ExportClientDeeplink(username string) (string, error
 
 	addr := fmt.Sprintf("%s:%d", c.domain, c.publicPort)
 	cmd := exec.Command(c.binaryPath,
-		fmt.Sprintf("%s/vpn.toml", c.configDir),
-		fmt.Sprintf("%s/hosts.toml", c.configDir),
+		c.configDir+"/vpn.toml",
+		c.configDir+"/hosts.toml",
 		"-c", username,
 		"-a", addr,
 		"-f", "deeplink",

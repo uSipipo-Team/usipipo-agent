@@ -3,7 +3,6 @@ package reporter
 import (
 	"context"
 	"crypto/tls"
-	"fmt"
 	"log"
 	"time"
 
