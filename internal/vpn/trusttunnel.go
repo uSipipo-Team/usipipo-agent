@@ -318,7 +318,6 @@ func (c *TrustTunnelClient) readClients() ([]ClientCredential, error) {
 }
 
 func (c *TrustTunnelClient) writeClients(clients []ClientCredential) error {
-	creds := CredentialsFile{Client: clients}
 
 	// Use a more targeted approach: build TOML manually with double quotes
 	// This avoids the issues with go-toml/v2 using single quotes and
