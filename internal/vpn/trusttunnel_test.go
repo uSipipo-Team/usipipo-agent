@@ -13,9 +13,10 @@ func setupTestTrustTunnel(t *testing.T) (*TrustTunnelClient, func()) {
 	tmpDir, err := os.MkdirTemp("", "trusttunnel-test")
 	require.NoError(t, err)
 
-	// Create credentials.toml with valid empty TOML array format
+	// Create credentials.toml with empty content
+	// The file will be created with valid TOML when the first client is added
 	credsPath := filepath.Join(tmpDir, "credentials.toml")
-	err = os.WriteFile(credsPath, []byte("[[client]]\n"), 0600)
+	err = os.WriteFile(credsPath, []byte(""), 0600)
 	require.NoError(t, err)
 
 	rulesPath := filepath.Join(tmpDir, "rules.toml")

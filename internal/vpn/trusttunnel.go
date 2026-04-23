@@ -314,7 +314,15 @@ func (c *TrustTunnelClient) readClients() ([]ClientCredential, error) {
 		return []ClientCredential{}, nil
 	}
 
-	return creds.Client, nil
+	// Filter out empty/invalid client entries (go-toml/v2 quirk: empty [[client]] creates struct with zero values)
+	validClients := make([]ClientCredential, 0, len(creds.Client))
+	for _, client := range creds.Client {
+		if client.Username != "" {
+			validClients = append(validClients, client)
+		}
+	}
+
+	return validClients, nil
 }
 
 func (c *TrustTunnelClient) writeClients(clients []ClientCredential) error {
