@@ -98,7 +98,7 @@ func (r *ReconciliationLoop) run() {
 func (r *ReconciliationLoop) reconcile() {
 	startTime := time.Now()
 	result := ReconcileResult{
-		RunID:      fmt.Sprintf("%d", time.Now().UnixNano()),
+		RunID:      fmt.Sprint(time.Now().UnixNano()),
 		Timestamp: startTime,
 	}
 
@@ -339,7 +339,7 @@ func (r *ReconciliationLoop) healOrphan(kernelPeer peerInfo) error {
 
 	// If no name found, use a generated name
 	if name == "" {
-		name = fmt.Sprintf("orphan-%s", kernelPeer.publicKey[:8])
+		name = "orphan-" + kernelPeer.publicKey[:8]
 	}
 
 	// The peer already exists in kernel, we need to create a DB record
@@ -483,11 +483,6 @@ func (r *ReconciliationLoop) logWarn(msg string, keysAndValues ...interface{}) {
 			}
 		}
 	}
-}
-
-// Config file peer parsing helper - reads config and returns map of public key to peer config
-func (r *ReconciliationLoop) getConfigPeersMap() (map[string]peerInfo, error) {
-	return r.parseConfigPeers()
 }
 
 // PeerFromConfig represents parsed peer from config file

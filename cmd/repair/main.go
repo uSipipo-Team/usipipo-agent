@@ -754,20 +754,7 @@ func runList() error {
 
 func setAuthHeaders(req *http.Request) {
 	req.Header.Set("X-Api-Key", cfg.BackendAPIKey)
-	req.Header.Set("X-Timestamp", fmt.Sprintf("%d", time.Now().Unix()))
-}
-
-func printError(format string, args ...interface{}) {
-	if cfg.JSONOutput {
-		err := map[string]interface{}{
-			"error": fmt.Sprintf(format, args...),
-		}
-		enc := json.NewEncoder(os.Stderr)
-		enc.SetIndent("", "  ")
-		enc.Encode(err)
-	} else {
-		fmt.Fprintf(os.Stderr, "ERROR: "+format+"\n", args...)
-	}
+	req.Header.Set("X-Timestamp", fmt.Sprint(time.Now().Unix()))
 }
 
 func printInfo(format string, args ...interface{}) {

@@ -370,13 +370,3 @@ func generateRequestID() string {
 	_, _ = rand.Read(b)
 	return fmt.Sprintf("%d-%x", time.Now().UnixNano(), b)
 }
-
-func randString(n int) string {
-	const letters = "abcdefghijklmnopqrstuvwxyz0123456789"
-	b := make([]byte, n)
-	rand.Read(b)
-	for i := range b {
-		b[i] = letters[int(b[i])%len(letters)]
-	}
-	return string(b)
-}
