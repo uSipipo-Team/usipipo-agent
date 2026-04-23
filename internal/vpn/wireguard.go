@@ -3,8 +3,10 @@ package vpn
 import (
 	"context"
 	"fmt"
+	"log"
 	"net"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -24,16 +26,19 @@ const (
 
 // WireGuardClient handles communication with WireGuard interface
 type WireGuardClient struct {
-	interfaceName    string
-	configPath       string
-	serverIP         string
-	serverPort       int
-	clientDNS        string
-	client           *wgctrl.Client
-	networkCIDR      string
-	startIP          int
-	endIP            int
+	interfaceName      string
+	configPath         string
+	serverIP           string
+	serverPort         int
+	clientDNS          string
+	client             *wgctrl.Client
+	networkCIDR        string
+	startIP            int
+	endIP              int
+	ipAllocClient     *IPAllocationClient
+	logger            *log.Logger
 	ipAllocationLock sync.Mutex
+	lockFilePath      string
 }
 
 // WireGuardPeer represents a WireGuard peer
@@ -125,6 +130,19 @@ func (c *WireGuardClient) Close() error {
 	return nil
 }
 
+// SetIPAllocationClient sets the IP allocation client for DB-based IP management
+func (c *WireGuardClient) SetIPAllocationClient(ipAllocClient *IPAllocationClient, logger *log.Logger) {
+	c.ipAllocClient = ipAllocClient
+	if logger != nil {
+		c.logger = logger
+	}
+}
+
+// SetLockFilePath sets the lock file path for cross-process locking
+func (c *WireGuardClient) SetLockFilePath(path string) {
+	c.lockFilePath = path
+}
+
 // ValidateKeyName validates a VPN key name according to strict rules:
 // - Length: 3-50 characters
 // - Allowed: alphanumeric (a-zA-Z0-9), spaces, hyphens (-), underscores (_)
@@ -155,71 +173,225 @@ func (c *WireGuardClient) ValidateKeyName(name string) bool {
 	return true
 }
 
-// CreatePeer creates a new WireGuard peer using wgctrl
+// CreatePeer creates a new WireGuard peer using DB-based IP allocation.
+// Falls back to legacy IP allocation if IPAllocationClient is not configured.
 func (c *WireGuardClient) CreatePeer(ctx context.Context, name string) (*WireGuardPeer, error) {
 	// Validate key name first (defense in depth)
 	if !c.ValidateKeyName(name) {
 		return nil, fmt.Errorf("invalid VPN key name: must be %d-%d characters, alphanumeric, spaces, hyphens, or underscores only", VPNKeyNameMinLength, VPNKeyNameMaxLength)
 	}
 
-	// Generate private key using wgctrl
+	// DB-first flow if IPAllocationClient is configured
+	if c.ipAllocClient != nil {
+		return c.createPeerDBFirst(ctx, name)
+	}
+
+	// Fallback to legacy flow
+	return c.CreatePeerLegacy(ctx, name)
+}
+
+// createPeerDBFirst creates a new WireGuard peer with DB-based IP allocation
+func (c *WireGuardClient) createPeerDBFirst(ctx context.Context, name string) (*WireGuardPeer, error) {
+	c.logInfo("create_peer_started", "name", name)
+
+	// Phase 0: Acquire cross-process lock to prevent concurrent allocations
+	var lockFile *os.File
+	var lockReleased bool
+	if c.lockFilePath != "" {
+		lf, err := os.OpenFile(c.lockFilePath, os.O_CREATE|os.O_RDWR, 0600)
+		if err != nil {
+			return nil, fmt.Errorf("failed to open lock file: %w", err)
+		}
+		lockFile = lf
+		lockTimeout := 10 * time.Second
+		if err := acquireLockWithTimeout(lockFile, lockTimeout); err != nil {
+			lockFile.Close()
+			return nil, fmt.Errorf("failed to acquire allocation lock: %w", err)
+		}
+		// Defer release of cross-process lock
+		defer func() {
+			if !lockReleased && lockFile != nil {
+				releaseLock(lockFile)
+				lockFile.Close()
+			}
+		}()
+	}
+
+	// Phase 1: Reserve IP from DB
+	reserveResp, err := c.ipAllocClient.ReserveIP(ctx, name)
+	if err != nil {
+		return nil, fmt.Errorf("failed to reserve IP: %w", err)
+	}
+	c.logInfo("ip_reserved", "name", name, "ip", reserveResp.IPAddress, "lease_id", reserveResp.LeaseID)
+
+	peerIP := net.ParseIP(reserveResp.IPAddress)
+	if peerIP == nil {
+		// Compensation: release reserved IP
+		c.ipAllocClient.ReleaseIP(ctx, reserveResp.LeaseID, "invalid_ip")
+		return nil, fmt.Errorf("invalid IP address from reservation: %s", reserveResp.IPAddress)
+	}
+
+	// Phase 2: Generate keys
 	privateKey, err := wgtypes.GeneratePrivateKey()
 	if err != nil {
+		// Compensation: release reserved IP
+		c.ipAllocClient.ReleaseIP(ctx, reserveResp.LeaseID, "keygen_failed")
 		return nil, fmt.Errorf("failed to generate private key: %w", err)
 	}
-
 	publicKey := privateKey.PublicKey()
 
-	// Generate pre-shared key
 	psk, err := wgtypes.GenerateKey()
 	if err != nil {
+		// Compensation: release reserved IP
+		c.ipAllocClient.ReleaseIP(ctx, reserveResp.LeaseID, "keygen_failed")
 		return nil, fmt.Errorf("failed to generate preshared key: %w", err)
 	}
+	c.logInfo("keys_generated", "name", name, "public_key", publicKey.String()[:16]+"...")
 
-	// Get next available IP
-	ip, err := c.getNextAvailableIP()
-	if err != nil {
-		return nil, err
+	// Phase 3: Configure kernel
+	peerConfig := wgtypes.PeerConfig{
+		PublicKey:         publicKey,
+		PresharedKey:      &psk,
+		AllowedIPs:       []net.IPNet{{IP: peerIP, Mask: net.CIDRMask(32, 32)}},
+		ReplaceAllowedIPs: false,
 	}
-
-	// Parse IP for AllowedIPs
-	_, ipNet, err := net.ParseCIDR(ip + "/32")
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse IP: %w", err)
-	}
-
-	// Configure peer using wgctrl
 	config := wgtypes.Config{
-		Peers: []wgtypes.PeerConfig{
-			{
-				PublicKey:         publicKey,
-				PresharedKey:      &psk,
-				AllowedIPs:        []net.IPNet{*ipNet},
-				ReplaceAllowedIPs: false,
-			},
-		},
+		Peers: []wgtypes.PeerConfig{peerConfig},
 	}
 
-	err = c.client.ConfigureDevice(c.interfaceName, config)
-	if err != nil {
-		return nil, fmt.Errorf("failed to configure device: %w", err)
+	if err := c.client.ConfigureDevice(c.interfaceName, config); err != nil {
+		// Compensation: release reserved IP
+		c.ipAllocClient.ReleaseIP(ctx, reserveResp.LeaseID, "kernel_failed")
+		return nil, fmt.Errorf("failed to configure kernel device: %w", err)
 	}
+	c.logInfo("kernel_configured", "name", name, "interface", c.interfaceName)
 
-	// Get server public key
+	// Phase 4: Get server public key and generate client config
 	device, err := c.client.Device(c.interfaceName)
 	if err != nil {
+		// Compensation: release reserved IP
+		c.ipAllocClient.ReleaseIP(ctx, reserveResp.LeaseID, "config_failed")
 		return nil, fmt.Errorf("failed to get device info: %w", err)
 	}
 
-	// Generate client config
-	configStr := c.generateClientConfig(privateKey.String(), ip, device.PublicKey.String(), psk.String())
+	clientConfig := c.generateClientConfig(privateKey.String(), reserveResp.IPAddress, device.PublicKey.String(), psk.String())
+
+	// Phase 5: Write config file (atomic)
+	if err := c.writePeerConfigAtomic(name, clientConfig); err != nil {
+		// Compensation: release reserved IP
+		c.ipAllocClient.ReleaseIP(ctx, reserveResp.LeaseID, "config_failed")
+		return nil, fmt.Errorf("failed to write peer config: %w", err)
+	}
+	c.logInfo("config_written", "name", name, "config_path", c.configPath)
+
+	// Phase 6: Confirm allocation in DB
+	if err := c.ipAllocClient.ConfirmAllocation(ctx, reserveResp.LeaseID, reserveResp.IPAddress, publicKey.String()); err != nil {
+		// Non-fatal: reconciler can fix later
+		c.logWarn("confirm_allocation_failed", "name", name, "lease_id", reserveResp.LeaseID, "error", err)
+	} else {
+		c.logInfo("allocation_confirmed", "name", name, "lease_id", reserveResp.LeaseID)
+	}
+
+	// Release cross-process lock
+	if lockFile != nil {
+		lockReleased = true
+		releaseLock(lockFile)
+		lockFile.Close()
+	}
 
 	return &WireGuardPeer{
 		PublicKey: publicKey.String(),
 		Name:      name,
-		IPAddress: ip,
-		Config:    configStr,
+		IPAddress: reserveResp.IPAddress,
+		Config:    clientConfig,
 	}, nil
+}
+
+// writePeerConfigAtomic writes peer configuration atomically using temp file and rename
+func (c *WireGuardClient) writePeerConfigAtomic(name, config string) error {
+	// Determine the directory containing the config file
+	dir := filepath.Dir(c.configPath)
+	if dir == "" {
+		dir = "."
+	}
+
+	// Create temp file in same directory for atomic rename
+	tmpFile, err := os.CreateTemp(dir, ".wg-"+name+".tmp")
+	if err != nil {
+		// Fallback: direct write
+		return c.writePeerConfig(name, config)
+	}
+	tempPath := tmpFile.Name()
+	defer os.Remove(tempPath)
+
+	if _, err := tmpFile.WriteString(config); err != nil {
+		tmpFile.Close()
+		return fmt.Errorf("write temp config: %w", err)
+	}
+	tmpFile.Close()
+
+	// Create backup before replacing
+	backupPath := c.configPath + ".backup"
+	if _, err := os.Stat(c.configPath); err == nil {
+		if err := copyFile(c.configPath, backupPath); err != nil {
+			c.logWarn("backup_failed", "error", err)
+		}
+	}
+
+	// Atomic rename
+	if err := os.Rename(tempPath, c.configPath); err != nil {
+		// Try fallback restore from backup
+		if _, err := os.Stat(backupPath); err == nil {
+			copyFile(backupPath, c.configPath)
+		}
+		return fmt.Errorf("atomic rename failed: %w", err)
+	}
+
+	return nil
+}
+
+// writePeerConfig writes peer configuration to config file (legacy non-atomic)
+func (c *WireGuardClient) writePeerConfig(name, config string) error {
+	f, err := os.OpenFile(c.configPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	_, err = f.WriteString(config)
+	return err
+}
+
+// copyFile copies a file from src to dst
+func copyFile(src, dst string) error {
+	data, err := os.ReadFile(src)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(dst, data, 0600)
+}
+
+// logInfo logs an info message with key-value pairs
+func (c *WireGuardClient) logInfo(msg string, keysAndValues ...interface{}) {
+	if c.logger != nil {
+		c.logger.Print("INFO: ", msg)
+		for i := 0; i < len(keysAndValues); i += 2 {
+			if i+1 < len(keysAndValues) {
+				c.logger.Print(" ", keysAndValues[i], "=", keysAndValues[i+1])
+			}
+		}
+	}
+}
+
+// logWarn logs a warning message with key-value pairs
+func (c *WireGuardClient) logWarn(msg string, keysAndValues ...interface{}) {
+	if c.logger != nil {
+		c.logger.Print("WARN: ", msg)
+		for i := 0; i < len(keysAndValues); i += 2 {
+			if i+1 < len(keysAndValues) {
+				c.logger.Print(" ", keysAndValues[i], "=", keysAndValues[i+1])
+			}
+		}
+	}
 }
 
 // DeletePeer removes a WireGuard peer using wgctrl.
@@ -317,7 +489,68 @@ func (c *WireGuardClient) GetTotalBytesTransferred(ctx context.Context) (uint64,
 	return total, nil
 }
 
-// Helper methods
+// CreatePeerLegacy creates a new WireGuard peer using legacy file-based IP allocation
+// This is the original CreatePeer implementation kept for backward compatibility
+func (c *WireGuardClient) CreatePeerLegacy(ctx context.Context, name string) (*WireGuardPeer, error) {
+	// Generate private key using wgctrl
+	privateKey, err := wgtypes.GeneratePrivateKey()
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate private key: %w", err)
+	}
+
+	publicKey := privateKey.PublicKey()
+
+	// Generate pre-shared key
+	psk, err := wgtypes.GenerateKey()
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate preshared key: %w", err)
+	}
+
+	// Get next available IP
+	ip, err := c.getNextAvailableIP()
+	if err != nil {
+		return nil, err
+	}
+
+	// Parse IP for AllowedIPs
+	_, ipNet, err := net.ParseCIDR(ip + "/32")
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse IP: %w", err)
+	}
+
+	// Configure peer using wgctrl
+	config := wgtypes.Config{
+		Peers: []wgtypes.PeerConfig{
+			{
+				PublicKey:         publicKey,
+				PresharedKey:      &psk,
+				AllowedIPs:        []net.IPNet{*ipNet},
+				ReplaceAllowedIPs: false,
+			},
+		},
+	}
+
+	err = c.client.ConfigureDevice(c.interfaceName, config)
+	if err != nil {
+		return nil, fmt.Errorf("failed to configure device: %w", err)
+	}
+
+	// Get server public key
+	device, err := c.client.Device(c.interfaceName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get device info: %w", err)
+	}
+
+	// Generate client config
+	configStr := c.generateClientConfig(privateKey.String(), ip, device.PublicKey.String(), psk.String())
+
+	return &WireGuardPeer{
+		PublicKey: publicKey.String(),
+		Name:      name,
+		IPAddress: ip,
+		Config:    configStr,
+	}, nil
+}
 
 // getNextAvailableIP finds the next available IP address with file locking to prevent race conditions.
 // Uses exclusive file locking (flock) to ensure only one IP allocation happens at a time.
