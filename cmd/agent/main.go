@@ -114,7 +114,7 @@ func main() {
 	}
 
 	// Initialize TrustTunnel metrics collector
-	ttMetricsURL := fmt.Sprintf("http://127.0.0.1:1987/metrics")
+	ttMetricsURL := "http://127.0.0.1:1987/metrics"
 	trustTunnelMetricsCollector := vpn.NewTrustTunnelMetricsCollector(ttMetricsURL)
 	api.SetTrustTunnelMetricsCollector(trustTunnelMetricsCollector)
 	metricsCollector.SetTrustTunnelCollector(trustTunnelMetricsCollector)

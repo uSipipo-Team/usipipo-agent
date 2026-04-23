@@ -54,8 +54,8 @@ func NewTrustTunnelClient(binaryPath, configDir, domain string, port, publicPort
 		domain:      domain,
 		port:        port,
 		publicPort:  publicPort,
-		credsPath:   fmt.Sprintf("%s/credentials.toml", configDir),
-		rulesPath:   fmt.Sprintf("%s/rules.toml", configDir),
+		credsPath:   configDir + "/credentials.toml",
+		rulesPath:   configDir + "/rules.toml",
 	}
 }
 
