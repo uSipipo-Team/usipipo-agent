@@ -16,6 +16,8 @@ import (
 
 	"golang.zx2c4.com/wireguard/wgctrl"
 	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
+
+	"github.com/uSipipo-Team/usipipo-agent/internal/utils/crypto"
 )
 
 // VPN key name validation constants
@@ -39,6 +41,7 @@ type WireGuardClient struct {
 	logger            *log.Logger
 	ipAllocationLock sync.Mutex
 	lockFilePath      string
+	validateKeys      bool
 }
 
 // WireGuardPeer represents a WireGuard peer
@@ -51,7 +54,7 @@ type WireGuardPeer struct {
 
 // NewWireGuardClient creates a new WireGuard client using wgctrl.
 // Reads the server network CIDR from the wg0.conf Address field.
-func NewWireGuardClient(interfaceName, configPath, serverIP string, serverPort int, clientDNS string) (*WireGuardClient, error) {
+func NewWireGuardClient(interfaceName, configPath, serverIP string, serverPort int, clientDNS string, validateKeys bool) (*WireGuardClient, error) {
 	// Read network CIDR from wg0.conf Address field
 	networkCIDR, startIP, endIP, err := readNetworkConfig(configPath)
 	if err != nil {
@@ -60,7 +63,7 @@ func NewWireGuardClient(interfaceName, configPath, serverIP string, serverPort i
 		startIP = 2
 		endIP = 254
 	}
-	return NewWireGuardClientWithRange(interfaceName, configPath, serverIP, serverPort, clientDNS, networkCIDR, startIP, endIP)
+	return NewWireGuardClientWithRange(interfaceName, configPath, serverIP, serverPort, clientDNS, networkCIDR, startIP, endIP, validateKeys)
 }
 
 // readNetworkConfig parses the wg0.conf Address field to extract the network CIDR and IP range.
@@ -98,7 +101,7 @@ func readNetworkConfig(configPath string) (string, int, int, error) {
 }
 
 // NewWireGuardClientWithRange creates a new WireGuard client with custom IP range
-func NewWireGuardClientWithRange(interfaceName, configPath, serverIP string, serverPort int, clientDNS, networkCIDR string, startIP, endIP int) (*WireGuardClient, error) {
+func NewWireGuardClientWithRange(interfaceName, configPath, serverIP string, serverPort int, clientDNS, networkCIDR string, startIP, endIP int, validateKeys bool) (*WireGuardClient, error) {
 	client, err := wgctrl.New()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create wgctrl client: %w", err)
@@ -110,15 +113,16 @@ func NewWireGuardClientWithRange(interfaceName, configPath, serverIP string, ser
 	}
 
 	return &WireGuardClient{
-		interfaceName: interfaceName,
-		configPath:    configPath,
-		serverIP:      serverIP,
-		serverPort:    serverPort,
-		clientDNS:     clientDNS,
-		client:        client,
-		networkCIDR:   networkCIDR,
-		startIP:       startIP,
-		endIP:         endIP,
+		interfaceName:   interfaceName,
+		configPath:      configPath,
+		serverIP:        serverIP,
+		serverPort:      serverPort,
+		clientDNS:       clientDNS,
+		client:          client,
+		networkCIDR:     networkCIDR,
+		startIP:         startIP,
+		endIP:           endIP,
+		validateKeys:    validateKeys,
 	}, nil
 }
 
@@ -231,8 +235,8 @@ func (c *WireGuardClient) createPeerDBFirst(ctx context.Context, name string) (*
 		return nil, fmt.Errorf("invalid IP address from reservation: %s", reserveResp.IPAddress)
 	}
 
-	// Phase 2: Generate keys
-	privateKey, err := wgtypes.GeneratePrivateKey()
+	// Phase 2: Generate keys with entropy validation
+	privateKey, err := c.generatePrivateKey()
 	if err != nil {
 		// Compensation: release reserved IP
 		c.ipAllocClient.ReleaseIP(ctx, reserveResp.LeaseID, "keygen_failed")
@@ -492,8 +496,8 @@ func (c *WireGuardClient) GetTotalBytesTransferred(ctx context.Context) (uint64,
 // CreatePeerLegacy creates a new WireGuard peer using legacy file-based IP allocation
 // This is the original CreatePeer implementation kept for backward compatibility
 func (c *WireGuardClient) CreatePeerLegacy(ctx context.Context, name string) (*WireGuardPeer, error) {
-	// Generate private key using wgctrl
-	privateKey, err := wgtypes.GeneratePrivateKey()
+	// Generate private key with optional entropy validation
+	privateKey, err := c.generatePrivateKey()
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate private key: %w", err)
 	}
@@ -621,6 +625,53 @@ func (c *WireGuardClient) buildIP(lastOctet int) string {
 		return "10.88.88." + strconv.Itoa(lastOctet)
 	}
 	return fmt.Sprintf("%d.%d.%d.%d", base[0], base[1], base[2], lastOctet)
+}
+
+// generatePrivateKey generates a WireGuard private key with optional entropy validation
+// If validateKeys is true, it will retry up to 3 times to ensure sufficient entropy
+func (c *WireGuardClient) generatePrivateKey() (wgtypes.PrivateKey, error) {
+	var privateKey wgtypes.PrivateKey
+	var err error
+	maxAttempts := 3
+
+	if c.validateKeys {
+		// Try to generate a validated key
+		keyHex := ""
+		for attempt := 0; attempt < maxAttempts; attempt++ {
+			privateKey, err = wgtypes.GeneratePrivateKey()
+			if err != nil {
+				return nil, fmt.Errorf("failed to generate private key: %w", err)
+			}
+
+			keyHex = privateKey.String()
+			if crypto.ValidateKeyEntropy(keyHex) {
+				// Good entropy, return
+				if c.logger != nil {
+					c.logger.Printf("INFO: Private key entropy validated (attempt %d/%d)", attempt+1, maxAttempts)
+				}
+				return privateKey, nil
+			}
+
+			// Entropy validation failed
+			if c.logger != nil {
+				c.logger.Printf("WARN: Private key failed entropy validation (attempt %d/%d), retrying...", attempt+1, maxAttempts)
+			}
+		}
+
+		// All attempts failed entropy validation
+		if c.logger != nil {
+			c.logger.Printf("ERROR: Private key entropy validation failed after %d attempts, proceeding anyway", maxAttempts)
+		}
+		// Proceed with the last generated key (graceful degradation)
+		return privateKey, nil
+	}
+
+	// Validation disabled - just generate once
+	privateKey, err = wgtypes.GeneratePrivateKey()
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate private key: %w", err)
+	}
+	return privateKey, nil
 }
 
 func (c *WireGuardClient) findPeerPublicKey(name string) (string, error) {

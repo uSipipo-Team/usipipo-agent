@@ -33,6 +33,14 @@ func main() {
 		log.Fatalf("Invalid API key configuration: %v", err)
 	}
 
+	// Log WireGuard key validation setting
+	if cfg.WGValidateKeys {
+		log.Println("✓ WireGuard key entropy validation: ENABLED")
+	} else {
+		log.Println("⚠️  WARNING: WireGuard key entropy validation: DISABLED (WG_VALIDATE_KEYS=false)")
+		log.Println("   This reduces cryptographic security. Only disable for testing/dev environments.")
+	}
+
 	if cfg.BackendURL == "" {
 		log.Fatal("BACKEND_URL is required")
 	}
@@ -63,6 +71,7 @@ func main() {
 		cfg.WireGuardServerIP,   // Public IP for client endpoint
 		cfg.WireGuardServerPort, // Port from WG_SERVER_PORT
 		"1.1.1.1",               // Cloudflare DNS
+		cfg.WGValidateKeys,
 	)
 	if err != nil {
 		log.Printf("Warning: WireGuard client initialization failed: %v", err)

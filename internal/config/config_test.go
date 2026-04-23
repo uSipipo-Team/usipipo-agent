@@ -67,3 +67,34 @@ func TestLoad_TrustTunnel_InvalidPort(t *testing.T) {
 		t.Errorf("TrustTunnelPort = %d, want 8443 (invalid port should use default)", cfg.TrustTunnelPort)
 	}
 }
+
+func TestLoad_WGValidateKeys_Default(t *testing.T) {
+	os.Unsetenv("WG_VALIDATE_KEYS")
+	cfg := Load()
+
+	if !cfg.WGValidateKeys {
+		t.Errorf("WGValidateKeys = %v, want true (default)", cfg.WGValidateKeys)
+	}
+}
+
+func TestLoad_WGValidateKeys_CustomFalse(t *testing.T) {
+	os.Setenv("WG_VALIDATE_KEYS", "false")
+	defer os.Unsetenv("WG_VALIDATE_KEYS")
+
+	cfg := Load()
+
+	if cfg.WGValidateKeys {
+		t.Errorf("WGValidateKeys = %v, want false", cfg.WGValidateKeys)
+	}
+}
+
+func TestLoad_WGValidateKeys_CustomTrue(t *testing.T) {
+	os.Setenv("WG_VALIDATE_KEYS", "true")
+	defer os.Unsetenv("WG_VALIDATE_KEYS")
+
+	cfg := Load()
+
+	if !cfg.WGValidateKeys {
+		t.Errorf("WGValidateKeys = %v, want true", cfg.WGValidateKeys)
+	}
+}
