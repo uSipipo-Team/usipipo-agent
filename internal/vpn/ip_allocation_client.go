@@ -123,7 +123,7 @@ func (c *IPAllocationClient) logError(msg string, keysAndValues ...interface{}) 
 func (c *IPAllocationClient) computeSignature(body []byte, timestamp int64) string {
 	h := hmac.New(sha256.New, []byte(c.apiKey))
 	h.Write(body)
-	io.WriteString(h, fmt.Sprintf("%d", timestamp))
+	io.WriteString(h, fmt.Sprint(timestamp))
 	return base64.StdEncoding.EncodeToString(h.Sum(nil))
 }
 
@@ -199,7 +199,7 @@ func (c *IPAllocationClient) doRequest(
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("X-Api-Key", c.apiKey)
-	req.Header.Set("X-Timestamp", fmt.Sprintf("%d", timestamp))
+	req.Header.Set("X-Timestamp", fmt.Sprint(timestamp))
 	req.Header.Set("X-Signature", signature)
 
 	c.logInfo("request_started",
