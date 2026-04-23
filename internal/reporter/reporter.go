@@ -3,7 +3,6 @@ package reporter
 import (
 	"context"
 	"crypto/tls"
-	"fmt"
 	"log"
 	"time"
 
@@ -110,7 +109,7 @@ func (r *Reporter) sendMetrics() {
 	}
 
 	// Send metrics
-	endpoint := fmt.Sprintf("%s/api/v1/metrics/agents/%s", r.backendURL, r.serverID)
+	endpoint := r.backendURL + "/api/v1/metrics/agents/" + r.serverID
 
 	resp, err := r.client.R().
 		SetContext(ctx).

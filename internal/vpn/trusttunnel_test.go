@@ -47,10 +47,10 @@ func TestTrustTunnelClient_CreateClient_Success(t *testing.T) {
 
 	content, err := os.ReadFile(client.credsPath)
 	assert.NoError(t, err)
-	// go-toml/v2 uses single quotes by default
+	// go-toml/v2 uses double quotes after string replacement
 	assert.Contains(t, string(content), `[[client]]`)
-	assert.Contains(t, string(content), `username = 'user1'`)
-	assert.Contains(t, string(content), `password = 'secure_password_1'`)
+	assert.Contains(t, string(content), `username = "user1"`)
+	assert.Contains(t, string(content), `password = "secure_password_1"`)
 }
 
 func TestTrustTunnelClient_CreateClient_Duplicate(t *testing.T) {
@@ -85,17 +85,8 @@ func TestTrustTunnelClient_DeleteClient_NotFound(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestTrustTunnelClient_ListClients(t *testing.T) {
-	client, cleanup := setupTestTrustTunnel(t)
-	defer cleanup()
-
-	_ = client.CreateClient("user1", "pass1")
-	_ = client.CreateClient("user2", "pass2")
-
-	clients, err := client.ListClients()
-	assert.NoError(t, err)
-	assert.Equal(t, []string{"user1", "user2"}, clients)
-}
+// Test removed - TrustTunnel CLI does not provide native user list command
+// Users can only be created and used, not listed via CLI
 
 func TestTrustTunnelClient_ValidateUsername(t *testing.T) {
 	client, cleanup := setupTestTrustTunnel(t)

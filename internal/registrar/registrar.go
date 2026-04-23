@@ -80,7 +80,7 @@ func (r *Registrar) RegisterOrGetServerID() (string, error) {
 	}
 
 	// Send registration request
-	endpoint := fmt.Sprintf("%s/api/v1/servers/register-agent", r.backendURL)
+	endpoint := r.backendURL + "/api/v1/servers/register-agent"
 
 	resp, err := r.client.R().
 		SetHeader("X-API-Key", r.apiKey).
@@ -155,7 +155,7 @@ func (r *Registrar) collectMetadata() (*RegistrationRequest, error) {
 }
 
 func (r *Registrar) getExistingServerID() (string, error) {
-	endpoint := fmt.Sprintf("%s/api/v1/servers/register-agent?api_key=%s", r.backendURL, r.apiKey)
+	endpoint := r.backendURL + "/api/v1/servers/register-agent?api_key=" + r.apiKey
 
 	resp, err := r.client.R().Get(endpoint)
 	if err != nil {

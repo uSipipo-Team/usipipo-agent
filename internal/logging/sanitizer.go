@@ -161,6 +161,6 @@ func sanitizeValue(value interface{}) interface{} {
 		return sanitized
 	default:
 		// For other types (int, bool, etc.), convert to string and sanitize
-		return sanitizeString(fmt.Sprintf("%v", v))
+		return sanitizeString(fmt.Sprint(v))
 	}
 }

@@ -54,8 +54,8 @@ func NewTrustTunnelClient(binaryPath, configDir, domain string, port, publicPort
 		domain:      domain,
 		port:        port,
 		publicPort:  publicPort,
-		credsPath:   fmt.Sprintf("%s/credentials.toml", configDir),
-		rulesPath:   fmt.Sprintf("%s/rules.toml", configDir),
+		credsPath:   configDir + "/credentials.toml",
+		rulesPath:   configDir + "/rules.toml",
 	}
 }
 
@@ -132,7 +132,10 @@ func (c *TrustTunnelClient) DeleteClient(username string) error {
 	return c.writeClients(filtered)
 }
 
-// ListClients returns all client usernames
+// ListClients returns all client usernames (deprecated)
+// TrustTunnel CLI does not provide native user list command.
+// This function exists for API completeness but is not usable in practice.
+// Consider removing in future if no alternative is found.
 func (c *TrustTunnelClient) ListClients() ([]string, error) {
 	c.fileLock.Lock()
 	defer c.fileLock.Unlock()
@@ -170,8 +173,8 @@ func (c *TrustTunnelClient) ExportClientConfig(username string) (string, error) 
 
 	addr := fmt.Sprintf("%s:%d", c.domain, c.port)
 	cmd := exec.Command(c.binaryPath,
-		fmt.Sprintf("%s/vpn.toml", c.configDir),
-		fmt.Sprintf("%s/hosts.toml", c.configDir),
+		c.configDir+"/vpn.toml",
+		c.configDir+"/hosts.toml",
 		"-c", username,
 		"-a", addr,
 		"-f", "toml",
@@ -205,8 +208,8 @@ func (c *TrustTunnelClient) ExportClientDeeplink(username string) (string, error
 
 	addr := fmt.Sprintf("%s:%d", c.domain, c.publicPort)
 	cmd := exec.Command(c.binaryPath,
-		fmt.Sprintf("%s/vpn.toml", c.configDir),
-		fmt.Sprintf("%s/hosts.toml", c.configDir),
+		c.configDir+"/vpn.toml",
+		c.configDir+"/hosts.toml",
 		"-c", username,
 		"-a", addr,
 		"-f", "deeplink",

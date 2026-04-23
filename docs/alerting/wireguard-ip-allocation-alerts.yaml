@@ -1,0 +1,162 @@
+# Alertmanager Rules for WireGuard IP Allocation Monitoring
+# Generated: 2026-04-23
+# Team: Network Infrastructure
+
+groups:
+  - name: wireguard-ip-allocation.alerts
+    interval: 30s
+    rules:
+      # WGIPPoolExhausted - Critical alert when pool drops below 5%
+      - alert: WGIPPoolExhausted
+        expr: |
+          (wg_ip_pool_available / wg_ip_pool_total) < 0.05
+          and wg_ip_pool_total > 0
+        for: 2m
+        labels:
+          severity: critical
+          team: network-infra
+          component: wireguard-ip-allocator
+        annotations:
+          summary: "WireGuard IP Pool Exhausted - {{ $value | humanizePercentage }} remaining"
+          description: |
+            WireGuard IP pool {{ $labels.pool_name }} has only {{ $value | humanizePercentage }} available IPs remaining.
+            Pool total: {{ $labels.wg_ip_pool_total }} | Available: {{ $labels.wg_ip_pool_available }}
+            
+            Action required: Expand IP pool or investigate IP leaks.
+          runbook_url: "https://docs.example.com/runbooks/wireguard-ip-allocation/#wgipexhausted"
+          impact: "New WireGuard peers cannot be provisioned"
+
+      # WGIPPoolCritical - Critical when no free IPs available
+      - alert: WGIPPoolCritical
+        expr: |
+          wg_ip_pool_available == 0
+          and wg_ip_pool_total > 0
+        for: 1m
+        labels:
+          severity: critical
+          team: network-infra
+          component: wireguard-ip-allocator
+        annotations:
+          summary: "WireGuard IP Pool Critical - Zero IPs available"
+          description: |
+            WireGuard IP pool {{ $labels.pool_name }} has ZERO available IPs.
+            All {{ $labels.wg_ip_pool_total }} IPs are allocated.
+            
+            URGENT: New peers cannot be created until IPs are released.
+          runbook_url: "https://docs.example.com/runbooks/wireguard-ip-allocation/#wgipcritical"
+          impact: "Complete service outage for new peer provisioning"
+
+      # WGDriftDetected - Warning when drift exceeds threshold
+      - alert: WGDriftDetected
+        expr: |
+          rate(wg_ip_allocated_total[5m]) - rate(wg_ip_released_total[5m]) > 10
+        for: 5m
+        labels:
+          severity: warning
+          team: network-infra
+          component: wireguard-ip-allocator
+        annotations:
+          summary: "WireGuard IP Drift Detected - {{ $value | printf \"%.0f\" }} IPs/hour"
+          description: |
+            IP drift in pool {{ $labels.pool_name }} exceeds threshold.
+            Allocation rate: {{ $labels.allocation_rate }} | Release rate: {{ $labels.release_rate }}
+            
+            Possible IP leak or unauthorized allocations.
+          runbook_url: "https://docs.example.com/runbooks/wireguard-ip-allocation/#wgdrift"
+          impact: "Possible IP pool exhaustion if leak continues"
+
+      # WGLockContentionHigh - Warning when lock wait exceeds 1 second
+      - alert: WGLockContentionHigh
+        expr: |
+          histogram_quantile(0.99, rate(wg_lock_wait_seconds_bucket[5m])) > 1
+        for: 5m
+        labels:
+          severity: warning
+          team: network-infra
+          component: wireguard-ip-allocator
+        annotations:
+          summary: "WireGuard Lock Contention High - p99: {{ $value | printf \"%.2f\" }}s"
+          description: |
+            Lock wait p99 in pool {{ $labels.pool_name }} exceeds 1 second.
+            Current p99: {{ $value | printf "%.2f" }}s
+            
+            High contention may cause latency spikes.
+          runbook_url: "https://docs.example.com/runbooks/wireguard-ip-allocation/#wgcontention"
+          impact: "Elevated latency for peer operations"
+
+      # WGReconciliationError - Warning when reconciliation encounters errors
+      - alert: WGReconciliationError
+        expr: |
+          rate(wg_reconciliation_errors_total[5m]) > 0
+        for: 2m
+        labels:
+          severity: warning
+          team: network-infra
+          component: wireguard-ip-allocator
+        annotations:
+          summary: "WireGuard Reconciliation Errors - {{ $value | printf \"%.0f\" }} in last 5m"
+          description: |
+            Reconciliation run for pool {{ $labels.pool_name }} encountered errors.
+            Error rate: {{ $value | printf "%.0f" }}/5min
+            
+            Runbook: Check reconciliation logs for details.
+          runbook_url: "https://docs.example.com/runbooks/wireguard-ip-allocation/#wgreconcile"
+          impact: "IP state may be inconsistent with database"
+
+      # WGAllocationFailureRate - Warning when failure rate exceeds 5%
+      - alert: WGAllocationFailureRate
+        expr: |
+          (rate(wg_allocation_failures_total[5m]) 
+          / rate(wg_allocation_requests_total[5m])) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          team: network-infra
+          component: wireguard-ip-allocator
+        annotations:
+          summary: "WireGuard Allocation Failure Rate - {{ $value | humanizePercentage }}"
+          description: |
+            Allocation failure rate for pool {{ $labels.pool_name }} exceeds 5%.
+            Failure rate: {{ $value | humanizePercentage }}
+            
+            Common causes: pool exhaustion, lock contention, database errors.
+          runbook_url: "https://docs.example.com/runbooks/wireguard-ip-allocation/#wgallocfail"
+          impact: "Peer provisioning failures"
+
+      # WGReconciliationNotRunning - Critical when no reconciliation runs detected
+      - alert: WGReconciliationNotRunning
+        expr: |
+          time() - wg_last_reconciliation_timestamp > 600
+        for: 5m
+        labels:
+          severity: critical
+          team: network-infra
+          component: wireguard-ip-allocator
+        annotations:
+          summary: "WireGuard Reconciliation Not Running"
+          description: |
+            No reconciliation runs detected for pool {{ $labels.pool_name }}.
+            Last run: {{ $value | humanizeDuration }} ago
+            
+            Automatic IP recovery is not functioning.
+          runbook_url: "https://docs.example.com/runbooks/wireguard-ip-allocation/#wgnoreconcile"
+          impact: "Orphaned IPs not recovered, state drift not detected"
+
+  - name: wireguard-ip-allocation.recording
+    interval: 30s
+    rules:
+      # Recording rules for derived metrics
+      - record: wg:ip_pool_utilization
+        expr: wg_ip_pool_allocated / wg_ip_pool_total
+
+      - record: wg:ip_pool_available
+        expr: wg_ip_pool_total - wg_ip_pool_allocated
+
+      - record: wg:allocation_failure_rate
+        expr: |
+          rate(wg_allocation_failures_total[5m]) 
+          / rate(wg_allocation_requests_total[5m])
+
+      - record: wg:drift_rate
+        expr: |
+          rate(wg_ip_allocated_total[5m]) - rate(wg_ip_released_total[5m])

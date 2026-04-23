@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -17,6 +16,9 @@ import (
 
 // Version is set at build time via ldflags
 var Version = "0.2.0-dev"
+
+// Global references for cleanup
+var reconcileLoop *vpn.ReconciliationLoop
 
 func main() {
 	cfg := config.Load()
@@ -68,6 +70,26 @@ func main() {
 	} else {
 		api.SetWireGuardClient(wireguardClient)
 		log.Printf("WireGuard client initialized successfully")
+
+		// Initialize IP allocation client if DB-first enabled
+		if cfg.EnableDBIPAllocation && cfg.BackendAPIURL != "" && cfg.BackendAPIKey != "" {
+			ipAllocClient := vpn.NewIPAllocationClient(
+				cfg.BackendAPIURL,
+				cfg.BackendAPIKey,
+				cfg.ServerID,
+				log.New(log.Writer(), "[IPAlloc] ", log.Flags()),
+			)
+			wireguardClient.SetIPAllocationClient(ipAllocClient, log.New(log.Writer(), "[WG] ", log.Flags()))
+			wireguardClient.SetLockFilePath(cfg.WGLockPath)
+			log.Printf("IP allocation client initialized (DB-first enabled, lock=%s)", cfg.WGLockPath)
+
+			// Start reconciliation loop
+			reconcileLoop = vpn.NewReconciliationLoop(wireguardClient, cfg.ReconcileInterval)
+			reconcileLoop.Start()
+			log.Printf("Reconciliation loop started (interval=%v)", cfg.ReconcileInterval)
+		} else if cfg.EnableDBIPAllocation {
+			log.Printf("Warning: ENABLE_DB_IP_ALLOCATION=true but BACKEND_API_URL or BACKEND_API_KEY not set")
+		}
 	}
 
 	// Initialize WireGuard metrics collector
@@ -91,7 +113,7 @@ func main() {
 	}
 
 	// Initialize TrustTunnel metrics collector
-	ttMetricsURL := fmt.Sprintf("http://127.0.0.1:1987/metrics")
+	ttMetricsURL := "http://127.0.0.1:1987/metrics"
 	trustTunnelMetricsCollector := vpn.NewTrustTunnelMetricsCollector(ttMetricsURL)
 	api.SetTrustTunnelMetricsCollector(trustTunnelMetricsCollector)
 	metricsCollector.SetTrustTunnelCollector(trustTunnelMetricsCollector)
@@ -139,6 +161,12 @@ func main() {
 	<-sigChan
 
 	log.Println("Shutting down...")
+
+	// Stop reconciliation loop
+	if reconcileLoop != nil {
+		reconcileLoop.Stop()
+		log.Println("Reconciliation loop stopped")
+	}
 
 	// Log shutdown event
 	securityLogger.LogShutdown()

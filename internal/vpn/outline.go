@@ -114,7 +114,7 @@ func (c *OutlineClient) CreateKey(ctx context.Context, name string) (*OutlineKey
 	_, err = c.client.R().
 		SetContext(ctx).
 		SetBody(map[string]string{"name": name}).
-		Put(fmt.Sprintf("%s/access-keys/%s/name", c.apiURL, result.ID))
+		Put(c.apiURL + "/access-keys/" + result.ID + "/name")
 
 	if err != nil {
 		// Non-fatal, log warning
@@ -135,7 +135,7 @@ func (c *OutlineClient) CreateKey(ctx context.Context, name string) (*OutlineKey
 func (c *OutlineClient) DeleteKey(ctx context.Context, keyID string) error {
 	resp, err := c.client.R().
 		SetContext(ctx).
-		Delete(fmt.Sprintf("%s/access-keys/%s", c.apiURL, keyID))
+		Delete(c.apiURL + "/access-keys/" + keyID)
 
 	if err != nil {
 		return fmt.Errorf("failed to delete key: %w", err)

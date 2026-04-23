@@ -59,9 +59,9 @@ func HybridRateLimitMiddleware(rl *HybridRateLimiter) gin.HandlerFunc {
 		// Check IP-based rate limit
 		resp, allowed := rl.AllowIP(ip, isAuthEndpoint)
 		if !allowed {
-			c.Header("X-RateLimit-Limit", fmt.Sprintf("%d", resp.Limit))
-			c.Header("X-RateLimit-Remaining", fmt.Sprintf("%d", resp.Remaining))
-			c.Header("X-RateLimit-Reset", fmt.Sprintf("%d", resp.Reset.Unix()))
+			c.Header("X-RateLimit-Limit", fmt.Sprint(resp.Limit))
+			c.Header("X-RateLimit-Remaining", fmt.Sprint(resp.Remaining))
+			c.Header("X-RateLimit-Reset", fmt.Sprint(resp.Reset.Unix()))
 			c.Header("Retry-After", fmt.Sprintf("%.0f", time.Until(resp.Reset).Seconds()))
 
 			c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{
@@ -76,9 +76,9 @@ func HybridRateLimitMiddleware(rl *HybridRateLimiter) gin.HandlerFunc {
 		}
 
 		// Add rate limit headers to response
-		c.Header("X-RateLimit-Limit", fmt.Sprintf("%d", resp.Limit))
-		c.Header("X-RateLimit-Remaining", fmt.Sprintf("%d", resp.Remaining))
-		c.Header("X-RateLimit-Reset", fmt.Sprintf("%d", resp.Reset.Unix()))
+		c.Header("X-RateLimit-Limit", fmt.Sprint(resp.Limit))
+		c.Header("X-RateLimit-Remaining", fmt.Sprint(resp.Remaining))
+		c.Header("X-RateLimit-Reset", fmt.Sprint(resp.Reset.Unix()))
 
 		c.Next()
 	}
@@ -147,9 +147,9 @@ func APIKeyMiddlewareWithRateLimit(validKey string, rl *HybridRateLimiter) gin.H
 		// Check key-based rate limit
 		resp, allowed := rl.AllowKey(apiKey)
 		if !allowed {
-			c.Header("X-RateLimit-Limit", fmt.Sprintf("%d", resp.Limit))
-			c.Header("X-RateLimit-Remaining", fmt.Sprintf("%d", resp.Remaining))
-			c.Header("X-RateLimit-Reset", fmt.Sprintf("%d", resp.Reset.Unix()))
+			c.Header("X-RateLimit-Limit", fmt.Sprint(resp.Limit))
+			c.Header("X-RateLimit-Remaining", fmt.Sprint(resp.Remaining))
+			c.Header("X-RateLimit-Reset", fmt.Sprint(resp.Reset.Unix()))
 			c.Header("Retry-After", fmt.Sprintf("%.0f", time.Until(resp.Reset).Seconds()))
 
 			c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{
@@ -159,9 +159,9 @@ func APIKeyMiddlewareWithRateLimit(validKey string, rl *HybridRateLimiter) gin.H
 		}
 
 		// Add rate limit headers to response
-		c.Header("X-RateLimit-Limit", fmt.Sprintf("%d", resp.Limit))
-		c.Header("X-RateLimit-Remaining", fmt.Sprintf("%d", resp.Remaining))
-		c.Header("X-RateLimit-Reset", fmt.Sprintf("%d", resp.Reset.Unix()))
+		c.Header("X-RateLimit-Limit", fmt.Sprint(resp.Limit))
+		c.Header("X-RateLimit-Remaining", fmt.Sprint(resp.Remaining))
+		c.Header("X-RateLimit-Reset", fmt.Sprint(resp.Reset.Unix()))
 
 		c.Next()
 	}
