@@ -49,3 +49,68 @@ If you see these warnings frequently, investigate your system's RNG:
 # Check RNG availability
 cat /proc/sys/kernel/random/entropy_avail  # Linux only
 ```
+
+## Configuration File Permissions (Issue #28)
+
+### Overview
+
+Sensitive configuration files like `.env` may contain secrets (API keys, tokens). If these files have overly permissive permissions (e.g., world-readable), other users on the system could access credentials.
+
+The **Configuration File Security** feature checks file permissions at startup and warns about insecure settings.
+
+### Supported Files
+
+| File | Required Permissions | Reason |
+|------|----------------------|--------|
+| `.env` | `0600` (rw-------) | Contains API keys and secrets |
+| Agent config files (future) | Configurable | Prevents unauthorized access |
+
+### Configuration
+
+| Environment Variable | Type | Default | Description |
+|----------------------|------|---------|-------------|
+| `CONFIG_STRICT_PERMS` | boolean | `false` | Enforce strict permission checks at startup |
+
+**Example**:
+```bash
+export CONFIG_STRICT_PERMS=true
+```
+
+### Permission Requirements
+
+- **`.env` file must be readable and writable only by the owner (0600)**
+- If permissions are more permissive (e.g., `0644`, `0666`), the agent will log a warning
+
+### Setting Correct Permissions
+
+```bash
+# Set .env to 0600
+chmod 600 .env
+
+# Verify
+ls -la .env
+# -rw------- 1 user user ... .env
+```
+
+### Security Impact
+
+- **Strict perms enabled**: Prevents other system users from reading secrets
+- **Disabled**: No startup check (not recommended for production)
+
+**Best Practice**: Always set `CONFIG_STRICT_PERMS=true` in production and ensure `.env` is `0600`.
+
+### Startup Checks
+
+At startup, the agent logs:
+
+**When secure**:
+```
+INFO: Configuration file permissions are secure (0600)
+```
+
+**When insecure**:
+```
+SECURITY WARNING: .env file has insecure permissions (0644)
+SECURITY WARNING: Expected 0600 (owner read/write only), got 0644
+SECURITY WARNING: Other users on this system may be able to read secrets!
+```

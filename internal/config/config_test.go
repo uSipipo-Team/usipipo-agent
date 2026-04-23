@@ -98,3 +98,34 @@ func TestLoad_WGValidateKeys_CustomTrue(t *testing.T) {
 		t.Errorf("WGValidateKeys = %v, want true", cfg.WGValidateKeys)
 	}
 }
+
+func TestLoad_ConfigStrictPerms_Default(t *testing.T) {
+	os.Unsetenv("CONFIG_STRICT_PERMS")
+	cfg := Load()
+
+	if cfg.ConfigStrictPerms {
+		t.Errorf("ConfigStrictPerms = %v, want false (default)", cfg.ConfigStrictPerms)
+	}
+}
+
+func TestLoad_ConfigStrictPerms_CustomTrue(t *testing.T) {
+	os.Setenv("CONFIG_STRICT_PERMS", "true")
+	defer os.Unsetenv("CONFIG_STRICT_PERMS")
+
+	cfg := Load()
+
+	if !cfg.ConfigStrictPerms {
+		t.Errorf("ConfigStrictPerms = %v, want true", cfg.ConfigStrictPerms)
+	}
+}
+
+func TestLoad_ConfigStrictPerms_CustomFalse(t *testing.T) {
+	os.Setenv("CONFIG_STRICT_PERMS", "false")
+	defer os.Unsetenv("CONFIG_STRICT_PERMS")
+
+	cfg := Load()
+
+	if cfg.ConfigStrictPerms {
+		t.Errorf("ConfigStrictPerms = %v, want false", cfg.ConfigStrictPerms)
+	}
+}

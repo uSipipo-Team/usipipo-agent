@@ -39,6 +39,7 @@ type Config struct {
 	GeoIPMaxRetries       int
 	GeoIPRetryBackoff     time.Duration
 	WGValidateKeys        bool
+	ConfigStrictPerms     bool
 	TrustTunnelBinary     string
 	TrustTunnelConfigDir  string
 	TrustTunnelDomain    string
@@ -169,6 +170,9 @@ func Load() *Config {
 
 	// WireGuard key validation
 	cfg.WGValidateKeys = getEnv("WG_VALIDATE_KEYS", "true") == "true"
+
+	// Config file permissions security
+	cfg.ConfigStrictPerms = getEnv("CONFIG_STRICT_PERMS", "false") == "true"
 
 	// Ensure lock directory exists
 	if cfg.EnableDBIPAllocation && cfg.WGLockPath != "" {
