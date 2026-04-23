@@ -320,19 +320,22 @@ func (c *TrustTunnelClient) readClients() ([]ClientCredential, error) {
 func (c *TrustTunnelClient) writeClients(clients []ClientCredential) error {
 	creds := CredentialsFile{Client: clients}
 
-	content, err := toml.Marshal(creds)
-	if err != nil {
-		return fmt.Errorf("failed to marshal credentials.toml: %w", err)
+	// Use a more targeted approach: build TOML manually with double quotes
+	// This avoids the issues with go-toml/v2 using single quotes and
+	// the naive string replacement causing parsing issues
+	var sb strings.Builder
+	for i, client := range clients {
+		if i > 0 {
+			sb.WriteString("\n")
+		}
+		sb.WriteString("[[client]]\n")
+		sb.WriteString(fmt.Sprintf("username = \"%s\"\n", client.Username))
+		sb.WriteString(fmt.Sprintf("password = \"%s\"", client.Password))
 	}
-
-	// go-toml/v2 serializes strings with single quotes by default,
-	// but the TrustTunnel CLI (Rust toml_edit) requires double quotes.
-	// Replace single quotes with double quotes in the output.
-	contentStr := strings.ReplaceAll(string(content), "'", "\"")
-	content = []byte(contentStr)
+	sb.WriteString("\n")
 
 	tmpPath := c.credsPath + ".tmp"
-	if err := os.WriteFile(tmpPath, content, 0600); err != nil {
+	if err := os.WriteFile(tmpPath, []byte(sb.String()), 0600); err != nil {
 		return fmt.Errorf("failed to write temp file: %w", err)
 	}
 
