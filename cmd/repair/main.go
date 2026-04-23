@@ -40,25 +40,10 @@ type Config struct {
 
 var cfg Config
 
-func main() {
-	if err := run(os.Args...); err != nil {
-		if err == context.Canceled || err == context.DeadlineExceeded {
-			os.Exit(2)
-		}
-		printError("%v", err)
-		os.Exit(1)
-	}
-}
-
-func run(args ...string) error {
-	viper.SetEnvPrefix("BACKEND")
-	viper.BindEnv("API_URL")
-	viper.BindEnv("API_KEY")
-
-	rootCmd := &cobra.Command{
-		Use:   "wg-ip-allocation",
-		Short: "WireGuard IP allocation repair operations",
-		Long: `WireGuard IP Allocation Repair CLI Tool
+var rootCmd = &cobra.Command{
+	Use:   "wg-ip-allocation",
+	Short: "WireGuard IP allocation repair operations",
+	Long: `WireGuard IP Allocation Repair CLI Tool
 
 Provides commands for auditing and fixing IP allocation drift issues
 in the WireGuard backend database.
@@ -79,35 +64,36 @@ Examples:
 
   # Import peer to database
   wg-ip-allocation import-peer --server-id 550e8400-e29b-41d4-a716-446655440000 --pubkey ABCDEF...= --ip 10.88.88.50`,
-	}
+	SilenceUsage: true,
 }
 
-// init registers persistent flags for the root command
 func init() {
+	viper.SetEnvPrefix("BACKEND")
+	viper.BindEnv("API_URL")
+	viper.BindEnv("API_KEY")
+
 	rootCmd.PersistentFlags().StringVar(&cfg.BackendAPIURL, "api-url", "", "Backend API URL (env: BACKEND_API_URL)")
 	rootCmd.PersistentFlags().StringVar(&cfg.BackendAPIKey, "api-key", "", "Backend API Key (env: BACKEND_API_KEY)")
 	rootCmd.PersistentFlags().BoolVar(&cfg.DryRun, "dry-run", false, "Show what would be done without making changes")
 	rootCmd.PersistentFlags().BoolVar(&cfg.JSONOutput, "json", false, "Output in JSON format")
-		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			cfg.BackendAPIURL = viper.GetString("API_URL")
-			cfg.BackendAPIKey = viper.GetString("API_KEY")
+	rootCmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
+		cfg.BackendAPIURL = viper.GetString("API_URL")
+		cfg.BackendAPIKey = viper.GetString("API_KEY")
 
-			if cfg.BackendAPIURL == "" {
-				cfg.BackendAPIURL = os.Getenv("BACKEND_API_URL")
-			}
-			if cfg.BackendAPIKey == "" {
-				cfg.BackendAPIKey = os.Getenv("BACKEND_API_KEY")
-			}
+		if cfg.BackendAPIURL == "" {
+			cfg.BackendAPIURL = os.Getenv("BACKEND_API_URL")
+		}
+		if cfg.BackendAPIKey == "" {
+			cfg.BackendAPIKey = os.Getenv("BACKEND_API_KEY")
+		}
 
-			if cfg.BackendAPIURL == "" {
-				return fmt.Errorf("BACKEND_API_URL is required (set BACKEND_API_URL env var)")
-			}
-			if cfg.BackendAPIKey == "" {
-				return fmt.Errorf("BACKEND_API_KEY is required (set BACKEND_API_KEY env var)")
-			}
-			return nil
-		},
-		SilenceUsage: true,
+		if cfg.BackendAPIURL == "" {
+			return fmt.Errorf("BACKEND_API_URL is required (set BACKEND_API_URL env var)")
+		}
+		if cfg.BackendAPIKey == "" {
+			return fmt.Errorf("BACKEND_API_KEY is required (set BACKEND_API_KEY env var)")
+		}
+		return nil
 	}
 
 	rootCmd.AddCommand(auditCmd())
@@ -117,8 +103,16 @@ func init() {
 	rootCmd.AddCommand(poolStatusCmd())
 	rootCmd.AddCommand(listAllocationsCmd())
 	rootCmd.AddCommand(versionCmd())
+}
 
-	return rootCmd.Execute()
+func main() {
+	if err := rootCmd.Execute(); err != nil {
+		if err == context.Canceled || err == context.DeadlineExceeded {
+			os.Exit(2)
+		}
+		printError("%v", err)
+		os.Exit(1)
+	}
 }
 
 func auditCmd() *cobra.Command {
