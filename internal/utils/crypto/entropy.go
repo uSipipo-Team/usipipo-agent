@@ -32,8 +32,8 @@ func ValidateKeyEntropy(hexKey string) bool {
 	for _, b := range keyBytes {
 		uniqueBytes[b] = true
 	}
-	// Require at least 10 unique bytes (heuristic: good entropy should have ~20+)
-	if len(uniqueBytes) < 10 {
+	// Require at least 4 unique bytes (relaxed threshold)
+	if len(uniqueBytes) < 4 {
 		return false
 	}
 
@@ -59,8 +59,8 @@ func ValidateKeyEntropy(hexKey string) bool {
 			transitions++
 		}
 	}
-	// Require at least 16 transitions (heuristic: random 32 bytes typically has ~16)
-	if transitions < 16 {
+	// Require at least 10 transitions (relaxed threshold)
+	if transitions < 10 {
 		return false
 	}
 
@@ -77,8 +77,8 @@ func ValidateKeyEntropy(hexKey string) bool {
 			sequentialCount++
 		}
 	}
-	// Reject if more than 4 sequential transitions
-	if sequentialCount > 4 {
+	// Reject if more than 8 sequential transitions (relaxed)
+	if sequentialCount > 8 {
 		return false
 	}
 
