@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"golang.zx2c4.com/wireguard/wgtypes"
+	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 )
 
 func TestGeneratePrivateKey_WithValidation(t *testing.T) {

@@ -3,7 +3,7 @@ package crypto
 import (
 	"testing"
 
-	"golang.zx2c4.com/wireguard/wgtypes"
+	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 )
 
 // TestValidateKeyEntropy_RealKey tests that a real WireGuard key passes entropy validation
