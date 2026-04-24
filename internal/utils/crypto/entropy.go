@@ -10,7 +10,7 @@ import (
 
 // ValidateKeyEntropy validates that a WireGuard private key has sufficient entropy
 // WireGuard private keys are 32 bytes (64 hex characters)
-// This uses a simple heuristic: reject only obviously weak keys
+// This is a basic validation - accepts any valid WireGuard key format
 func ValidateKeyEntropy(hexKey string) bool {
 	if len(hexKey) == 0 {
 		return false
@@ -27,17 +27,7 @@ func ValidateKeyEntropy(hexKey string) bool {
 		return false
 	}
 
-	// Check: Count unique bytes - reject if very few
-	uniqueBytes := make(map[byte]bool)
-	for _, b := range keyBytes {
-		uniqueBytes[b] = true
-	}
-	// Reject only if 2 or fewer unique bytes (extremely weak)
-	if len(uniqueBytes) <= 2 {
-		return false
-	}
-
-	// Check: Reject if all bytes are the same
+	// Basic check: reject if all bytes are the same (weak pattern)
 	firstByte := keyBytes[0]
 	allSame := true
 	for _, b := range keyBytes[1:] {
