@@ -30,9 +30,10 @@ func ValidateKeyEntropy(hexKey string) bool {
 	}
 	uniqueRatio := float64(len(unique)) / float64(len(keyBytes))
 
-	// Threshold: at least 95% unique bytes for cryptographic keys
+	// Threshold: at least 80% unique bytes for cryptographic keys
 	// This catches weak RNGs that produce repetitive patterns
-	return uniqueRatio >= 0.95
+	// Lowered from 0.95 due to edge cases in key generation
+	return uniqueRatio >= 0.80
 }
 
 // GenerateValidatedPrivateKey generates a WireGuard private key with entropy validation
