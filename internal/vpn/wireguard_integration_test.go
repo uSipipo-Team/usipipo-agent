@@ -22,6 +22,7 @@ func TestWireGuardGenKey(t *testing.T) {
 		"localhost",
 		51820,
 		"1.1.1.1",
+		false, // disable key validation for integration tests
 	)
 
 	// Test genkey
@@ -51,7 +52,7 @@ func TestWireGuardPubkey(t *testing.T) {
 	// Known private key for testing (from WireGuard documentation)
 	privateKey := "wG69hNKhK1GZ7LzFZvKzNzFZvKzNzFZvKzNzFZvKzNk="
 
-	client := NewWireGuardClient("wg0", "/etc/wireguard", "localhost", 51820, "1.1.1.1")
+	client := NewWireGuardClient("wg0", "/etc/wireguard", "localhost", 51820, "1.1.1.1", false)
 
 	pubkey, err := client.runCommandWithInput("wg", privateKey, "pubkey")
 	if err != nil {
@@ -77,7 +78,7 @@ func TestWireGuardShow(t *testing.T) {
 	}
 
 	iface := os.Getenv("WIREGUARD_TEST_INTERFACE")
-	client := NewWireGuardClient(iface, "/etc/wireguard", "localhost", 51820, "1.1.1.1")
+	client := NewWireGuardClient(iface, "/etc/wireguard", "localhost", 51820, "1.1.1.1", false)
 
 	// Test wg show
 	output, err := client.runCommand("wg", "show", iface)
@@ -104,7 +105,7 @@ func TestWireGuardShowDump(t *testing.T) {
 	}
 
 	iface := os.Getenv("WIREGUARD_TEST_INTERFACE")
-	client := NewWireGuardClient(iface, "/etc/wireguard", "localhost", 51820, "1.1.1.1")
+	client := NewWireGuardClient(iface, "/etc/wireguard", "localhost", 51820, "1.1.1.1", false)
 
 	// Test wg show dump
 	output, err := client.runCommand("wg", "show", iface, "dump")

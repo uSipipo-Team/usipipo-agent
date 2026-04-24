@@ -34,6 +34,12 @@ type Config struct {
 	RateLimitRPS          float64
 	RateLimitBurst        int
 	HTTPClientTimeout     time.Duration
+	GeoIPEnabled          bool
+	GeoIPTimeout          time.Duration
+	GeoIPMaxRetries       int
+	GeoIPRetryBackoff     time.Duration
+	WGValidateKeys        bool
+	ConfigStrictPerms     bool
 	TrustTunnelBinary     string
 	TrustTunnelConfigDir  string
 	TrustTunnelDomain    string
@@ -139,6 +145,34 @@ func Load() *Config {
 		reconcileInterval = 10 * time.Second
 	}
 	cfg.ReconcileInterval = reconcileInterval
+
+	// GeoIP settings
+	geoIPEnabled := getEnv("GEOIP_ENABLED", "true") == "true"
+	geoIPTimeout, err := time.ParseDuration(getEnv("GEOIP_TIMEOUT", "5s"))
+	if err != nil || geoIPTimeout <= 0 {
+		log.Printf("⚠️  WARNING: Invalid GEOIP_TIMEOUT '%s': %v. Using default 5s",
+			getEnv("GEOIP_TIMEOUT", "5s"), err)
+		geoIPTimeout = 5 * time.Second
+	}
+	geoIPMaxRetries, _ := strconv.Atoi(getEnv("GEOIP_MAX_RETRIES", "3"))
+	if geoIPMaxRetries < 0 {
+		geoIPMaxRetries = 3
+	}
+	geoIPRetryBackoff, err := time.ParseDuration(getEnv("GEOIP_RETRY_BACKOFF", "1s"))
+	if err != nil || geoIPRetryBackoff <= 0 {
+		geoIPRetryBackoff = 1 * time.Second
+	}
+
+	cfg.GeoIPEnabled = geoIPEnabled
+	cfg.GeoIPTimeout = geoIPTimeout
+	cfg.GeoIPMaxRetries = geoIPMaxRetries
+	cfg.GeoIPRetryBackoff = geoIPRetryBackoff
+
+	// WireGuard key validation
+	cfg.WGValidateKeys = getEnv("WG_VALIDATE_KEYS", "true") == "true"
+
+	// Config file permissions security
+	cfg.ConfigStrictPerms = getEnv("CONFIG_STRICT_PERMS", "true") == "true"
 
 	// Ensure lock directory exists
 	if cfg.EnableDBIPAllocation && cfg.WGLockPath != "" {

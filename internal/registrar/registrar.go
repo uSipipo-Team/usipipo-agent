@@ -19,6 +19,7 @@ type Registrar struct {
 	apiKey     string
 	serverID   string
 	client     *resty.Client
+	cfg        *config.Config
 }
 
 // RegistrationResponse represents backend response
@@ -52,6 +53,7 @@ func NewRegistrar(cfg *config.Config) *Registrar {
 		apiKey:     cfg.APIKey,
 		serverID:   cfg.ServerID,
 		client:     resty.New(),
+		cfg:        cfg,
 	}
 }
 
@@ -122,8 +124,8 @@ func (r *Registrar) collectMetadata() (*RegistrationRequest, error) {
 		hostname = "unknown"
 	}
 
-	// Get geo location
-	geo, err := geoip.GetLocation(r.client)
+	// Get geo location using config
+	geo, err := geoip.GetLocation(r.cfg)
 	if err != nil {
 		// Use defaults if geo lookup fails
 		geo = &geoip.GeoIPResponse{
@@ -135,8 +137,6 @@ func (r *Registrar) collectMetadata() (*RegistrationRequest, error) {
 		}
 	}
 
-	cfg := config.Load()
-
 	return &RegistrationRequest{
 		Hostname:          hostname,
 		IPAddress:         geo.Query,
@@ -147,9 +147,9 @@ func (r *Registrar) collectMetadata() (*RegistrationRequest, error) {
 		AgentVersion:      getVersion(),
 		OSType:            runtime.GOOS,
 		OSArch:            runtime.GOARCH,
-		AgentURL:          cfg.AgentURL,
-		SupportsOutline:   cfg.OutlineAPIURL != "",
-		SupportsWireGuard: cfg.WireGuardInterface != "",
+		AgentURL:          r.cfg.AgentURL,
+		SupportsOutline:   r.cfg.OutlineAPIURL != "",
+		SupportsWireGuard: r.cfg.WireGuardInterface != "",
 		AgentAPIKey:       r.apiKey,
 	}, nil
 }

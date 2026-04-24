@@ -9,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/uSipipo-Team/usipipo-agent/internal/logging"
 	"github.com/uSipipo-Team/usipipo-agent/internal/metrics"
+	"github.com/uSipipo-Team/usipipo-agent/internal/utils/validation"
 	"github.com/uSipipo-Team/usipipo-agent/internal/vpn"
 )
 
@@ -155,6 +156,12 @@ func CreateOutlineKeyHandler(c *gin.Context) {
 		return
 	}
 
+	// Validate peer name
+	if err := validation.ValidatePeerName(req.Name); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid name: " + err.Error()})
+		return
+	}
+
 	key, err := outlineClient.CreateKey(c.Request.Context(), req.Name)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -256,6 +263,12 @@ func CreateWireGuardPeerHandler(c *gin.Context) {
 		return
 	}
 
+	// Validate peer name
+	if err := validation.ValidatePeerName(req.Name); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid name: " + err.Error()})
+		return
+	}
+
 	peer, err := wireguardClient.CreatePeer(c.Request.Context(), req.Name)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -281,6 +294,12 @@ func DeleteWireGuardPeerHandler(c *gin.Context) {
 	}
 
 	name := c.Param("name")
+
+	// Validate name
+	if err := validation.ValidatePeerName(name); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid name: " + err.Error()})
+		return
+	}
 
 	err := wireguardClient.DeletePeer(c.Request.Context(), name)
 	if err != nil {
@@ -312,6 +331,12 @@ func GetWireGuardPeerUsageHandler(c *gin.Context) {
 
 	name := c.Param("name")
 
+	// Validate name
+	if err := validation.ValidatePeerName(name); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid name: " + err.Error()})
+		return
+	}
+
 	bytesUsed, err := wireguardClient.GetPeerUsage(c.Request.Context(), name)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
@@ -334,6 +359,12 @@ func RegenerateWireGuardPeerHandler(c *gin.Context) {
 	}
 
 	name := c.Param("name")
+
+	// Validate name
+	if err := validation.ValidatePeerName(name); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid name: " + err.Error()})
+		return
+	}
 
 	// Delete existing peer
 	err := wireguardClient.DeletePeer(c.Request.Context(), name)

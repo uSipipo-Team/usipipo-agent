@@ -11,6 +11,7 @@ import (
 	"github.com/uSipipo-Team/usipipo-agent/internal/logging"
 	"github.com/uSipipo-Team/usipipo-agent/internal/metrics"
 	"github.com/uSipipo-Team/usipipo-agent/internal/reporter"
+	"github.com/uSipipo-Team/usipipo-agent/internal/utils/security"
 	"github.com/uSipipo-Team/usipipo-agent/internal/vpn"
 )
 
@@ -31,6 +32,25 @@ func main() {
 	// Validate API key format at startup (fail fast)
 	if err := cfg.ValidateAPIKey(); err != nil {
 		log.Fatalf("Invalid API key configuration: %v", err)
+	}
+
+	// Log WireGuard key validation setting
+	if cfg.WGValidateKeys {
+		log.Println("✓ WireGuard key entropy validation: ENABLED")
+	} else {
+		log.Println("⚠️  WARNING: WireGuard key entropy validation: DISABLED (WG_VALIDATE_KEYS=false)")
+		log.Println("   This reduces cryptographic security. Only disable for testing/dev environments.")
+	}
+
+	// Check configuration file permissions
+	if err := security.CheckEnvFilePermissions(".env", cfg.ConfigStrictPerms); err != nil {
+		if cfg.ConfigStrictPerms {
+			log.Fatalf("SECURITY: Insecure configuration detected: %v", err)
+		}
+		log.Printf("SECURITY WARNING: %v", err)
+		log.Println("   Consider setting CONFIG_STRICT_PERMS=true and fixing file permissions with: chmod 600 .env")
+	} else {
+		log.Println("✓ Configuration file permissions verified")
 	}
 
 	if cfg.BackendURL == "" {
@@ -63,6 +83,7 @@ func main() {
 		cfg.WireGuardServerIP,   // Public IP for client endpoint
 		cfg.WireGuardServerPort, // Port from WG_SERVER_PORT
 		"1.1.1.1",               // Cloudflare DNS
+		cfg.WGValidateKeys,
 	)
 	if err != nil {
 		log.Printf("Warning: WireGuard client initialization failed: %v", err)
