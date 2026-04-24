@@ -10,7 +10,7 @@ import (
 
 // ValidateKeyEntropy validates that a WireGuard private key has sufficient entropy
 // WireGuard private keys are 32 bytes (64 hex characters)
-// This uses multiple heuristics to detect weak keys
+// This uses a simple heuristic: reject only obviously weak keys
 func ValidateKeyEntropy(hexKey string) bool {
 	if len(hexKey) == 0 {
 		return false
@@ -27,20 +27,19 @@ func ValidateKeyEntropy(hexKey string) bool {
 		return false
 	}
 
-	// Check 1: Count unique bytes - weak keys have very few unique bytes
+	// Check: Count unique bytes - reject if very few
 	uniqueBytes := make(map[byte]bool)
 	for _, b := range keyBytes {
 		uniqueBytes[b] = true
 	}
-	// Require at least 4 unique bytes (relaxed threshold)
-	if len(uniqueBytes) < 4 {
+	// Reject only if 2 or fewer unique bytes (extremely weak)
+	if len(uniqueBytes) <= 2 {
 		return false
 	}
 
-	// Check 2: Detect all-same or almost-all-same patterns
-	// (e.g., "000000..." or "aaaaaa...")
-	allSame := true
+	// Check: Reject if all bytes are the same
 	firstByte := keyBytes[0]
+	allSame := true
 	for _, b := range keyBytes[1:] {
 		if b != firstByte {
 			allSame = false
@@ -48,37 +47,6 @@ func ValidateKeyEntropy(hexKey string) bool {
 		}
 	}
 	if allSame {
-		return false
-	}
-
-	// Check 3: Count transitions (byte value changes)
-	// High entropy keys have many transitions
-	transitions := 0
-	for i := 1; i < len(keyBytes); i++ {
-		if keyBytes[i] != keyBytes[i-1] {
-			transitions++
-		}
-	}
-	// Require at least 10 transitions (relaxed threshold)
-	if transitions < 10 {
-		return false
-	}
-
-	// Check 4: Detect sequential patterns (e.g., 000102030405...)
-	// Calculate consecutive runs - reject if most bytes are sequential
-	sequentialCount := 0
-	for i := 1; i < len(keyBytes); i++ {
-		// Check for incremental sequential pattern: current = previous + 1
-		prevVal := int(keyBytes[i-1])
-		currVal := int(keyBytes[i])
-		expectedNext := prevVal + 1
-		// Allow wrap to 0 (mod 256)
-		if currVal == expectedNext || (prevVal == 255 && currVal == 0) {
-			sequentialCount++
-		}
-	}
-	// Reject if more than 8 sequential transitions (relaxed)
-	if sequentialCount > 8 {
 		return false
 	}
 
