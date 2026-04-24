@@ -172,7 +172,7 @@ func Load() *Config {
 	cfg.WGValidateKeys = getEnv("WG_VALIDATE_KEYS", "true") == "true"
 
 	// Config file permissions security
-	cfg.ConfigStrictPerms = getEnv("CONFIG_STRICT_PERMS", "false") == "true"
+	cfg.ConfigStrictPerms = getEnv("CONFIG_STRICT_PERMS", "true") == "true"
 
 	// Ensure lock directory exists
 	if cfg.EnableDBIPAllocation && cfg.WGLockPath != "" {

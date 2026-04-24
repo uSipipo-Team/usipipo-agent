@@ -658,12 +658,11 @@ func (c *WireGuardClient) generatePrivateKey() (wgtypes.PrivateKey, error) {
 			}
 		}
 
-		// All attempts failed entropy validation
+		// All attempts failed entropy validation - MUST fail, don't proceed with weak key
 		if c.logger != nil {
-			c.logger.Printf("ERROR: Private key entropy validation failed after %d attempts, proceeding anyway", maxAttempts)
+			c.logger.Printf("ERROR: Private key entropy validation failed after %d attempts, CANNOT proceed", maxAttempts)
 		}
-		// Proceed with the last generated key (graceful degradation)
-		return privateKey, nil
+		return nil, fmt.Errorf("failed to generate high-entropy private key after %d attempts", maxAttempts)
 	}
 
 	// Validation disabled - just generate once
