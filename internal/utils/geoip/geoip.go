@@ -3,7 +3,6 @@ package geoip
 import (
 	"encoding/json"
 	"fmt"
-	"time"
 
 	"github.com/go-resty/resty/v2"
 	"github.com/uSipipo-Team/usipipo-agent/internal/config"
