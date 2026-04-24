@@ -65,23 +65,20 @@ func ValidateKeyEntropy(hexKey string) bool {
 	}
 
 	// Check 4: Detect sequential patterns (e.g., 000102030405...)
-	// Calculate consecutive runs
-	maxConsecutiveRun := 1
-	currentRun := 1
+	// Calculate consecutive runs - reject if most bytes are sequential
+	sequentialCount := 0
 	for i := 1; i < len(keyBytes); i++ {
-		// Check for sequential pattern: current = previous + 1 (with wrap)
-		expected := byte(int(keyBytes[i-1]) + 1
-		if keyBytes[i] == expected || keyBytes[i] == 0 {
-			currentRun++
-			if currentRun > maxConsecutiveRun {
-				maxConsecutiveRun = currentRun
-			}
-		} else {
-			currentRun = 1
+		// Check for incremental sequential pattern: current = previous + 1
+		prevVal := int(keyBytes[i-1])
+		currVal := int(keyBytes[i])
+		expectedNext := prevVal + 1
+		// Allow wrap to 0 (mod 256)
+		if currVal == expectedNext || (prevVal == 255 && currVal == 0) {
+			sequentialCount++
 		}
 	}
-	// Reject if more than 4 consecutive sequential bytes
-	if maxConsecutiveRun > 4 {
+	// Reject if more than 4 sequential transitions
+	if sequentialCount > 4 {
 		return false
 	}
 
