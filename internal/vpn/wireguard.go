@@ -629,8 +629,8 @@ func (c *WireGuardClient) buildIP(lastOctet int) string {
 
 // generatePrivateKey generates a WireGuard private key with optional entropy validation
 // If validateKeys is true, it will retry up to 3 times to ensure sufficient entropy
-func (c *WireGuardClient) generatePrivateKey() (wgtypes.PrivateKey, error) {
-	var privateKey wgtypes.PrivateKey
+func (c *WireGuardClient) generatePrivateKey() (wgtypes.Key, error) {
+	var privateKey wgtypes.Key
 	var err error
 	maxAttempts := 3
 
