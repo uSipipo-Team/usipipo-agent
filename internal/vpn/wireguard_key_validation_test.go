@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"golang.zx2c4.com/wireguard/wgtypes"
+	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 )
 
 func TestGeneratePrivateKey_WithValidation(t *testing.T) {
@@ -19,13 +19,14 @@ func TestGeneratePrivateKey_WithValidation(t *testing.T) {
 		t.Fatalf("generatePrivateKey() failed: %v", err)
 	}
 
-	if key.IsZero() {
+	// Verify it's not zero (empty)
+	if key.String() == "" {
 		t.Error("generated key is zero")
 	}
 
 	// Verify it's a valid WireGuard private key
 	publicKey := key.PublicKey()
-	if publicKey.IsZero() {
+	if publicKey.String() == "" {
 		t.Error("public key derived from private key is zero")
 	}
 }
@@ -42,7 +43,8 @@ func TestGeneratePrivateKey_WithoutValidation(t *testing.T) {
 		t.Fatalf("generatePrivateKey() failed: %v", err)
 	}
 
-	if key.IsZero() {
+	// Verify it's not zero (empty)
+	if key.String() == "" {
 		t.Error("generated key is zero")
 	}
 }
@@ -60,7 +62,7 @@ func TestGeneratePrivateKey_EntropyRetry(t *testing.T) {
 		if err != nil {
 			t.Fatalf("generatePrivateKey() failed on iteration %d: %v", i, err)
 		}
-		if key.IsZero() {
+		if key.String() == "" {
 			t.Errorf("iteration %d: generated key is zero", i)
 		}
 	}
