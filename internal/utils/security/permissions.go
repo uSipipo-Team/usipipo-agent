@@ -3,7 +3,6 @@ package security
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 )
 
 // CheckFilePermissions verifica que un archivo tenga permisos seguros
@@ -58,7 +57,7 @@ func IsWorldWritable(filePath string) (bool, error) {
 		return false, err
 	}
 	perm := info.Mode().Perm()
-	return perm&0002 != 0 // Others write bit
+	return perm&0002 != 0, nil // Others write bit
 }
 
 // SecureFileMode returns the recommended secure file mode (0600)

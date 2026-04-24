@@ -5,7 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 
-	"golang.zx2c4.com/wireguard/wgtypes"
+	"golang.zx2c4.com/wireguard/wgctrl/wgtypes"
 )
 
 // ValidateKeyEntropy validates that a WireGuard private key has sufficient entropy
