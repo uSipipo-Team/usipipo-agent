@@ -19,13 +19,13 @@ func TestGeneratePrivateKey_WithValidation(t *testing.T) {
 		t.Fatalf("generatePrivateKey() failed: %v", err)
 	}
 
-	if key.IsZero() {
+	if isZeroKey(key) {
 		t.Error("generated key is zero")
 	}
 
 	// Verify it's a valid WireGuard private key
 	publicKey := key.PublicKey()
-	if publicKey.IsZero() {
+	if isZeroKey(publicKey) {
 		t.Error("public key derived from private key is zero")
 	}
 }
@@ -42,7 +42,7 @@ func TestGeneratePrivateKey_WithoutValidation(t *testing.T) {
 		t.Fatalf("generatePrivateKey() failed: %v", err)
 	}
 
-	if key.IsZero() {
+	if isZeroKey(key) {
 		t.Error("generated key is zero")
 	}
 }
@@ -60,7 +60,7 @@ func TestGeneratePrivateKey_EntropyRetry(t *testing.T) {
 		if err != nil {
 			t.Fatalf("generatePrivateKey() failed on iteration %d: %v", i, err)
 		}
-		if key.IsZero() {
+		if isZeroKey(key) {
 			t.Errorf("iteration %d: generated key is zero", i)
 		}
 	}
@@ -133,4 +133,10 @@ func TestWireGuardKeyGeneration_Entropy(t *testing.T) {
 			t.Error("Generated key is all zeros")
 		}
 	}
+}
+
+// isZeroKey checks if a wgtypes.Key is zero (all bytes are zero)
+// This replaces the IsZero() method which was removed in newer wgctrl versions
+func isZeroKey(k wgtypes.Key) bool {
+	return k == wgtypes.Key{}
 }
