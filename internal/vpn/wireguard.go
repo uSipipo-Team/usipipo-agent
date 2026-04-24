@@ -629,8 +629,8 @@ func (c *WireGuardClient) buildIP(lastOctet int) string {
 
 // generatePrivateKey generates a WireGuard private key with optional entropy validation
 // If validateKeys is true, it will retry up to 3 times to ensure sufficient entropy
-func (c *WireGuardClient) generatePrivateKey() (wgtypes.PrivateKey, error) {
-	var privateKey wgtypes.PrivateKey
+func (c *WireGuardClient) generatePrivateKey() (wgtypes.Key, error) {
+	var privateKey wgtypes.Key
 	var err error
 	maxAttempts := 3
 
@@ -640,7 +640,7 @@ func (c *WireGuardClient) generatePrivateKey() (wgtypes.PrivateKey, error) {
 		for attempt := 0; attempt < maxAttempts; attempt++ {
 			privateKey, err = wgtypes.GeneratePrivateKey()
 			if err != nil {
-				return nil, fmt.Errorf("failed to generate private key: %w", err)
+				return wgtypes.Key{}, fmt.Errorf("failed to generate private key: %w", err)
 			}
 
 			keyHex = privateKey.String()
@@ -662,13 +662,13 @@ func (c *WireGuardClient) generatePrivateKey() (wgtypes.PrivateKey, error) {
 		if c.logger != nil {
 			c.logger.Printf("ERROR: Private key entropy validation failed after %d attempts, CANNOT proceed", maxAttempts)
 		}
-		return nil, fmt.Errorf("failed to generate high-entropy private key after %d attempts", maxAttempts)
+		return wgtypes.Key{}, fmt.Errorf("failed to generate high-entropy private key after %d attempts", maxAttempts)
 	}
 
 	// Validation disabled - just generate once
 	privateKey, err = wgtypes.GeneratePrivateKey()
 	if err != nil {
-		return nil, fmt.Errorf("failed to generate private key: %w", err)
+		return wgtypes.Key{}, fmt.Errorf("failed to generate private key: %w", err)
 	}
 	return privateKey, nil
 }
