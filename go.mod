@@ -1,6 +1,6 @@
 module github.com/uSipipo-Team/usipipo-agent
 
-go 1.24
+go 1.26
 
 require (
 	github.com/gin-contrib/cors v1.4.0
