@@ -99,7 +99,7 @@ type Server struct {
 }
 
 // NewServer creates a new HTTP server with Gin and hybrid rate limiting
-func NewServer(apiKey, outlineAPIURL string, rateConfig RateLimiterConfig) *Server {
+func NewServer(apiKey string, rateConfig RateLimiterConfig) *Server {
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.New()
 	router.Use(gin.Recovery())
@@ -150,26 +150,11 @@ func NewServer(apiKey, outlineAPIURL string, rateConfig RateLimiterConfig) *Serv
 		protected.GET("/status", StatusHandler)
 		protected.GET("/metrics", MetricsHandler)
 
-		// Outline VPN management routes
-		protected.POST("/outline/keys", CreateOutlineKeyHandler)
-		protected.DELETE("/outline/keys/:id", DeleteOutlineKeyHandler)
-		protected.POST("/outline/keys/:id/regenerate", RegenerateOutlineKeyHandler)
-
 		// WireGuard VPN management routes
 		protected.POST("/wireguard/peers", CreateWireGuardPeerHandler)
 		protected.DELETE("/wireguard/peers/:name", DeleteWireGuardPeerHandler)
 		protected.GET("/wireguard/peers/:name/usage", GetWireGuardPeerUsageHandler)
 		protected.POST("/wireguard/peers/:name/regenerate", RegenerateWireGuardPeerHandler)
-
-		// TrustTunnel VPN management routes
-		protected.POST("/trusttunnel/clients", CreateTrustTunnelClientHandler)
-		protected.DELETE("/trusttunnel/clients/:username", DeleteTrustTunnelClientHandler)
-		protected.GET("/trusttunnel/clients", ListTrustTunnelClientsHandler)
-		protected.POST("/trusttunnel/clients/:username/export", ExportTrustTunnelClientHandler)
-		protected.POST("/trusttunnel/clients/:username/export-deeplink", ExportTrustTunnelDeeplinkHandler)
-		protected.GET("/trusttunnel/metrics", GetTrustTunnelMetricsHandler)
-		protected.POST("/trusttunnel/rules", AddTrustTunnelRuleHandler)
-		protected.DELETE("/trusttunnel/rules", RemoveTrustTunnelRuleHandler)
 	}
 
 	return &Server{
