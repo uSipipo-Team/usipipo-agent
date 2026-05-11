@@ -6,16 +6,16 @@ type EventType string
 const (
 	// AuthFailureEvent - Authentication failure
 	AuthFailureEvent EventType = "auth_failure"
-	
+
 	// RateLimitExceededEvent - Rate limit triggered
 	RateLimitExceededEvent EventType = "rate_limit_exceeded"
-	
+
 	// StartupEvent - Agent startup
 	StartupEvent EventType = "startup"
-	
+
 	// ShutdownEvent - Agent shutdown
 	ShutdownEvent EventType = "shutdown"
-	
+
 	// ConfigChangeEvent - Configuration change (future)
 	ConfigChangeEvent EventType = "config_change"
 )
@@ -26,10 +26,10 @@ type LogLevel string
 const (
 	// InfoLevel - Informational messages
 	InfoLevel LogLevel = "INFO"
-	
+
 	// WarnLevel - Warning messages
 	WarnLevel LogLevel = "WARN"
-	
+
 	// ErrorLevel - Error messages
 	ErrorLevel LogLevel = "ERROR"
 )

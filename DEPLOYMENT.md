@@ -2,7 +2,6 @@
 
 ## Prerequisites
 
-- Outline Manager running
 - WireGuard installed and configured
 - Caddy installed (for HTTPS)
 
@@ -105,7 +104,6 @@ Update the following variables:
 - `AGENT_API_KEY` - Your unique API key (provided by backend)
 - `BACKEND_URL` - Backend URL (e.g., `https://api.usipipo.duckdns.org`)
 - `SERVER_ID` - Server identifier (e.g., `us-east-1`, `de-central-1`)
-- `OUTLINE_API_URL` - Outline Manager API URL (default: `http://localhost:8081`)
 
 ### 3. Create system user
 
@@ -178,15 +176,6 @@ curl -H "X-API-Key: your-api-key" https://usipipousa.duckdns.org/metrics
 # Expected: JSON with system metrics
 ```
 
-### Test Outline key creation
-
-```bash
-curl -X POST -H "X-API-Key: your-api-key" \
-  -H "Content-Type: application/json" \
-  -d '{"name":"test-key"}' \
-  https://usipipousa.duckdns.org/outline/keys
-```
-
 ### Test WireGuard peer creation
 
 ```bash
@@ -214,12 +203,6 @@ sudo systemctl restart usipipo-agent
 
 ```bash
 sudo netstat -tulpn | grep :8080
-```
-
-### Verify Outline API is accessible
-
-```bash
-curl http://localhost:8081/server
 ```
 
 ### Verify WireGuard interface exists

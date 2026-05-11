@@ -15,21 +15,21 @@ import (
 type ReconciliationLoop struct {
 	client   *WireGuardClient
 	interval time.Duration
-	stopCh  chan struct{}
-	wg      sync.WaitGroup
-	logger  *log.Logger
+	stopCh   chan struct{}
+	wg       sync.WaitGroup
+	logger   *log.Logger
 }
 
 // ReconcileResult represents the outcome of a reconciliation run.
 type ReconcileResult struct {
 	RunID        string    `json:"run_id"`
-	Timestamp   time.Time `json:"timestamp"`
-	DurationMs  int64     `json:"duration_ms"`
-	Orphans     int       `json:"orphans"`
-	StaleDB     int       `json:"stale_db"`
-	IPMismatches int     `json:"ip_mismatches"`
-	AutoConfirms int      `json:"auto_confirms"`
-	Errors      int       `json:"errors"`
+	Timestamp    time.Time `json:"timestamp"`
+	DurationMs   int64     `json:"duration_ms"`
+	Orphans      int       `json:"orphans"`
+	StaleDB      int       `json:"stale_db"`
+	IPMismatches int       `json:"ip_mismatches"`
+	AutoConfirms int       `json:"auto_confirms"`
+	Errors       int       `json:"errors"`
 }
 
 // DriftType represents the type of drift detected.
@@ -37,8 +37,8 @@ type DriftType string
 
 const (
 	DriftTypeOrphan      DriftType = "orphan"      // Kernel peer not in DB
-	DriftTypeStaleDB     DriftType = "stale_db"   // DB entry not in kernel
-	DriftTypeIPMismatch DriftType = "ip_mismatch" // IP mismatch kernel vs DB
+	DriftTypeStaleDB     DriftType = "stale_db"    // DB entry not in kernel
+	DriftTypeIPMismatch  DriftType = "ip_mismatch" // IP mismatch kernel vs DB
 	DriftTypeUnconfirmed DriftType = "unconfirmed" // Reserved but not confirmed
 )
 
@@ -46,8 +46,8 @@ const (
 type peerInfo struct {
 	publicKey string
 	ipAddress string
-	name     string
-	status   string // "active", "reserved", "confirmed", "revoked"
+	name      string
+	status    string // "active", "reserved", "confirmed", "revoked"
 }
 
 // NewReconciliationLoop creates a new reconciliation loop.
@@ -55,8 +55,8 @@ func NewReconciliationLoop(client *WireGuardClient, interval time.Duration) *Rec
 	return &ReconciliationLoop{
 		client:   client,
 		interval: interval,
-		stopCh:  make(chan struct{}),
-		logger:  client.logger,
+		stopCh:   make(chan struct{}),
+		logger:   client.logger,
 	}
 }
 
@@ -98,7 +98,7 @@ func (r *ReconciliationLoop) run() {
 func (r *ReconciliationLoop) reconcile() {
 	startTime := time.Now()
 	result := ReconcileResult{
-		RunID:      fmt.Sprint(time.Now().UnixNano()),
+		RunID:     fmt.Sprint(time.Now().UnixNano()),
 		Timestamp: startTime,
 	}
 
@@ -172,7 +172,7 @@ func (r *ReconciliationLoop) getKernelPeers() (map[string]peerInfo, error) {
 		peers[pubKey] = peerInfo{
 			publicKey: pubKey,
 			ipAddress: ipAddress,
-			status:   "active",
+			status:    "active",
 		}
 	}
 
@@ -212,8 +212,8 @@ func (r *ReconciliationLoop) parseConfigPeers() (map[string]peerInfo, error) {
 		peers[pubKey] = peerInfo{
 			publicKey: pubKey,
 			ipAddress: ipAddress,
-			name:     name,
-			status:   "config",
+			name:      name,
+			status:    "config",
 		}
 	}
 

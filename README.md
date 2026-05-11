@@ -13,7 +13,7 @@ Part of the **uSipipo VPN Ecosystem** - Centralized orchestration for multi-coun
 ## 🎯 Overview
 
 The VPN Agent runs on each VPS server worldwide, providing:
-- **Remote VPN Management** - Create/delete Outline keys and WireGuard peers via HTTPS API
+- **Remote VPN Management** - Create/delete WireGuard peers via HTTPS API
 - **Auto-Reporting Metrics** - Push system metrics to backend every 1 minute
 - **Secure Communication** - API Key authentication + HTTPS encryption
 - **Multi-Platform Support** - Linux, macOS, Windows (amd64, arm64)
@@ -38,11 +38,9 @@ The VPN Agent runs on each VPS server worldwide, providing:
    │ ┌─────┐ │  │ ┌────┐ │  │ ┌────┐ │  │ ┌────┐ │
    │ │Agent│ │  │ │Agent│ │  │ │Agent│ │  │ │Agent│ │
    │ └──┬──┘ │  │ └─┬──┘ │  │ └─┬──┘ │  │ └─┬──┘ │
-   │    │    │  │   │    │  │   │    │  │   │    │
-   │ ┌──▼────┐│  │ ┌─▼───┐│  │ ┌─▼───┐│  │ ┌─▼───┐│
-   │ │Outline││  │ │Outline││ │ │Outline││ │ │Outline││
-   │ │WireGuard││ │ │WireGuard││ │ │WireGuard││ │ │WireGuard││
-   │ └───────┘│  │ └────┘│  │ └────┘│  │ └────┘│
+    │ ┌──▼──────┐│ │ ┌─▼──────┐│ │ ┌─▼──────┐│ │ ┌─▼──────┐│
+    │ │WireGuard││ │ │WireGuard││ │ │WireGuard││ │ │WireGuard││
+    │ └─────────┘│ │ └────────┘│ │ └────────┘│ │ └────────┘│
    └─────────┘  └───────┘  └───────┘  └───────┘
 ```
 
@@ -51,24 +49,7 @@ The VPN Agent runs on each VPS server worldwide, providing:
 ## 🚀 Features
 
 ### VPN Management
-- ✅ **Outline Manager Integration** - Create/delete Shadowsocks keys via Outline API
 - ✅ **WireGuard Integration** - Create/delete peers via `wg` commands
-- ✅ **Trust Tunnel Support** - AdGuard VPN client management
-
-### TrustTunnel Support
-
-The agent supports TrustTunnel (AdGuard anti-censorship VPN) client management:
-
-- Create/delete clients via `credentials.toml`
-- Export client configurations via CLI
-- Collect metrics from Prometheus endpoint
-- Manage access rules via `rules.toml`
-
-Configuration:
-- `TRUSTTUNNEL_BINARY` - Path to trusttunnel_endpoint binary
-- `TRUSTTUNNEL_CONFIG_DIR` - Directory containing config files
-- `TRUSTTUNNEL_DOMAIN` - Public domain for client endpoint
-- `TRUSTTUNNEL_PORT` - Listening port (default: 8443)
 
 ### Metrics & Monitoring
 - ✅ **System Metrics** - CPU, memory, disk, network usage
@@ -126,12 +107,9 @@ go build -o agent ./cmd/agent
 | `AGENT_API_KEY` | API key for authentication | - | **Yes** |
 | `BACKEND_URL` | Backend URL for metrics | - | **Yes** |
 | `SERVER_ID` | Server identifier (UUID) | - | **Yes** |
-| `OUTLINE_API_URL` | Outline Manager API URL | `http://localhost:8081` | No |
 | `WG_INTERFACE` | WireGuard interface name | `wg0` | No |
-| `TRUSTTUNNEL_BINARY` | Path to trusttunnel_endpoint binary | - | No |
-| `TRUSTTUNNEL_CONFIG_DIR` | Directory containing TrustTunnel configs | - | No |
-| `TRUSTTUNNEL_DOMAIN` | Public domain for TrustTunnel endpoint | - | No |
-| `TRUSTTUNNEL_PORT` | TrustTunnel listening port | `8443` | No |
+| `WG_SERVER_IP` | WireGuard server public IP | - | No |
+| `WG_SERVER_PORT` | WireGuard server listening port | `51820` | No |
 
 ### Example `.env` File
 
@@ -142,9 +120,10 @@ AGENT_API_KEY=your-unique-api-key-here
 BACKEND_URL=https://api.usipipo.duckdns.org
 SERVER_ID=us-east-1
 
-# VPN configuration
-OUTLINE_API_URL=http://localhost:8081
+# WireGuard configuration
 WG_INTERFACE=wg0
+WG_SERVER_IP=your-server-public-ip
+WG_SERVER_PORT=51820
 ```
 
 ---
@@ -163,24 +142,13 @@ WG_INTERFACE=wg0
 |--------|----------|-------------|
 | `GET` | `/status` | Server status |
 | `GET` | `/metrics` | Detailed system + VPN metrics |
-| `POST` | `/outline/keys` | Create Outline key |
-| `DELETE` | `/outline/keys/:id` | Delete Outline key |
 | `POST` | `/wireguard/peers` | Create WireGuard peer |
 | `DELETE` | `/wireguard/peers/:name` | Delete WireGuard peer |
 | `GET` | `/wireguard/peers/:name/usage` | Get peer usage stats |
-| `POST` | `/trusttunnel/clients` | Create TrustTunnel client |
-| `DELETE` | `/trusttunnel/clients/:id` | Delete TrustTunnel client |
-| `GET` | `/trusttunnel/clients/:id/config` | Export client configuration |
 
 ### Example Usage
 
 ```bash
-# Create Outline key
-curl -X POST -H "X-API-Key: your-api-key" \
-  -H "Content-Type: application/json" \
-  -d '{"name":"user-123"}' \
-  https://usipipousa.duckdns.org/outline/keys
-
 # Create WireGuard peer
 curl -X POST -H "X-API-Key: your-api-key" \
   -H "Content-Type: application/json" \
@@ -261,10 +229,6 @@ Agents push metrics to backend every 1 minute:
     "network_tx_bytes": 9876543210
   },
   "vpn": {
-    "outline": {
-      "active_keys": 42,
-      "total_bytes_transferred": 5000000000
-    },
     "wireguard": {
       "active_peers": 38,
       "total_bytes_transferred": 4500000000
@@ -309,7 +273,6 @@ usipipo-agent/
 │   │   ├── middleware.go        # API Key auth
 │   │   └── server.go            # HTTP server setup
 │   ├── vpn/
-│   │   ├── outline.go           # Outline API client
 │   │   └── wireguard.go         # WireGuard wrapper
 │   ├── metrics/
 │   │   ├── types.go             # Metrics types

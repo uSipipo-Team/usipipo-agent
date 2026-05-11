@@ -41,7 +41,6 @@ type RegistrationRequest struct {
 	OSType            string `json:"os_type"`
 	OSArch            string `json:"os_arch"`
 	AgentURL          string `json:"agent_url"`
-	SupportsOutline   bool   `json:"supports_outline"`
 	SupportsWireGuard bool   `json:"supports_wireguard"`
 	AgentAPIKey       string `json:"agent_api_key"`
 }
@@ -148,7 +147,6 @@ func (r *Registrar) collectMetadata() (*RegistrationRequest, error) {
 		OSType:            runtime.GOOS,
 		OSArch:            runtime.GOARCH,
 		AgentURL:          r.cfg.AgentURL,
-		SupportsOutline:   r.cfg.OutlineAPIURL != "",
 		SupportsWireGuard: r.cfg.WireGuardInterface != "",
 		AgentAPIKey:       r.apiKey,
 	}, nil
@@ -187,7 +185,7 @@ func IsValidUUID(uuid string) bool {
 			}
 			continue
 		}
-		if !((r >= '0' && r <= '9') || (r >= 'a' && r <= 'f') || (r >= 'A' && r <= 'F')) {
+		if (r < '0' || r > '9') && (r < 'a' || r > 'f') && (r < 'A' || r > 'F') {
 			return false
 		}
 	}
@@ -199,7 +197,7 @@ func getVersion() string {
 	return Version
 }
 
-var Version = "0.2.0-dev"
+var Version = "0.12.0"
 
 func saveServerIDToEnv(serverID string) error {
 	envPath := "/opt/usipipo-agent/.env"

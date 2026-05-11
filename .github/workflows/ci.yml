@@ -6,33 +6,60 @@ on:
   pull_request:
     branches: [ main ]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  test:
+  lint:
     runs-on: ubuntu-latest
-    
+    timeout-minutes: 10
+
     steps:
-    - uses: actions/checkout@v4
-    
+    - uses: actions/checkout@v6
+
     - name: Set up Go
-      uses: actions/setup-go@v5
+      uses: actions/setup-go@v6
       with:
-        go-version: '1.21'
+        go-version: '1.26'
+        cache: true
+
+    - name: Check formatting
+      run: |
+        unformatted=$(gofmt -l .)
+        if [ -n "$unformatted" ]; then
+          echo "The following files are not formatted with gofmt:"
+          echo "$unformatted"
+          exit 1
+        fi
+
+    - name: Lint
+      uses: golangci/golangci-lint-action@v9
+      with:
+        version: v2.11
+
+  test:
+    needs: lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+    - uses: actions/checkout@v6
+
+    - name: Set up Go
+      uses: actions/setup-go@v6
+      with:
+        go-version: '1.26'
         cache: true
 
     - name: Download dependencies
-      run: |
-        go mod tidy
-        go mod download
-        go mod verify
+      run: go mod download
+
+    - name: Verify dependencies
+      run: go mod verify
 
     - name: Build
       run: go build -v ./...
-    
-    - name: Test
-      run: go test -v ./...
-    
-    - name: Lint
-      uses: golangci/golangci-lint-action@v3
-      with:
-        version: latest
-        args: --disable=errcheck
+
+    - name: Test with race detection
+      run: go test -race -timeout 5m -v ./...

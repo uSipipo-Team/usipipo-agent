@@ -17,11 +17,11 @@ type IPLimiter struct {
 
 // FailureTracker tracks authentication failures for an IP
 type FailureTracker struct {
-	Count        int           // Number of failed attempts
-	FirstFail    time.Time     // When first failure occurred (for window calculation)
-	LastFail     time.Time     // When last failure occurred
-	LockedUntil  time.Time     // If locked, when lockout expires
-	BackoffLevel int           // Current backoff level (0-5)
+	Count        int       // Number of failed attempts
+	FirstFail    time.Time // When first failure occurred (for window calculation)
+	LastFail     time.Time // When last failure occurred
+	LockedUntil  time.Time // If locked, when lockout expires
+	BackoffLevel int       // Current backoff level (0-5)
 }
 
 // HybridRateLimiter combines IP-based and key-based rate limiting
@@ -78,10 +78,10 @@ type RateLimitResponse struct {
 // NewHybridRateLimiter creates a new hybrid rate limiter
 func NewHybridRateLimiter(config *HybridRateLimiterConfig) *HybridRateLimiter {
 	rl := &HybridRateLimiter{
-		ipLimiters:     make(map[string]*IPLimiter),
-		keyLimiters:    make(map[string]*rate.Limiter),
-		authFailures:   make(map[string]*FailureTracker),
-		config:         config,
+		ipLimiters:   make(map[string]*IPLimiter),
+		keyLimiters:  make(map[string]*rate.Limiter),
+		authFailures: make(map[string]*FailureTracker),
+		config:       config,
 	}
 
 	// Set default failure window if not specified
@@ -281,7 +281,7 @@ func (rl *HybridRateLimiter) AllowKey(apiKey string) (*RateLimitResponse, bool) 
 		remaining = 0
 	}
 	resetTime := time.Now().Add(
-		time.Duration(float64(time.Second)*float64(rl.config.KeyBurst)/rl.config.KeyRPS),
+		time.Duration(float64(time.Second) * float64(rl.config.KeyBurst) / rl.config.KeyRPS),
 	)
 
 	resp := &RateLimitResponse{

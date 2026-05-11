@@ -18,34 +18,34 @@ import (
 )
 
 var (
-	ErrReserveFailed  = errors.New("ip reserve failed")
+	ErrReserveFailed = errors.New("ip reserve failed")
 	ErrConfirmFailed = errors.New("ip confirm failed")
 	ErrReleaseFailed = errors.New("ip release failed")
 	ErrServerError   = errors.New("server error")
 )
 
 const (
-	defaultTimeout    = 15 * time.Second
-	maxRetries        = 3
-	baseRetryDelay    = 100 * time.Millisecond
+	defaultTimeout = 15 * time.Second
+	maxRetries     = 3
+	baseRetryDelay = 100 * time.Millisecond
 )
 
 type IPReserveRequest struct {
 	ServerID   string `json:"server_id"`
 	VpnKeyName string `json:"vpn_key_name"`
 	VpnType    string `json:"vpn_type"`
-	RequestID string `json:"request_id"`
+	RequestID  string `json:"request_id"`
 }
 
 type IPReserveResponse struct {
-	IPAddress     string    `json:"ip_address"`
-	IPInt         int       `json:"ip_int"`
-	LeaseID       string    `json:"lease_id"`
-	CIDR          string    `json:"cidr"`
-	PublicKey     string    `json:"public_key"`
-	PrivateKey    string    `json:"private_key"`
-	PresharedKey  string    `json:"preshared_key"`
-	Config       string    `json:"config"`
+	IPAddress      string    `json:"ip_address"`
+	IPInt          int       `json:"ip_int"`
+	LeaseID        string    `json:"lease_id"`
+	CIDR           string    `json:"cidr"`
+	PublicKey      string    `json:"public_key"`
+	PrivateKey     string    `json:"private_key"`
+	PresharedKey   string    `json:"preshared_key"`
+	Config         string    `json:"config"`
 	LeaseExpiresAt time.Time `json:"lease_expires_at"`
 }
 
@@ -76,8 +76,8 @@ func NewIPAllocationClient(baseURL, apiKey, serverID string, logger *log.Logger)
 		logger = log.New(log.Writer(), "[IPAlloc] ", log.Flags())
 	}
 	return &IPAllocationClient{
-		baseURL: baseURL,
-		apiKey:  apiKey,
+		baseURL:  baseURL,
+		apiKey:   apiKey,
 		serverID: serverID,
 		httpClient: &http.Client{
 			Timeout: defaultTimeout,
@@ -286,7 +286,7 @@ func (c *IPAllocationClient) ReserveIP(ctx context.Context, keyName string) (*IP
 		ServerID:   c.serverID,
 		VpnKeyName: keyName,
 		VpnType:    "wireguard",
-		RequestID: generateRequestID(),
+		RequestID:  generateRequestID(),
 	}
 
 	var resp IPReserveResponse
@@ -339,7 +339,7 @@ func (c *IPAllocationClient) ConfirmAllocation(ctx context.Context, leaseID, ipA
 func (c *IPAllocationClient) ReleaseIP(ctx context.Context, leaseID, reason string) error {
 	req := IPReleaseRequest{
 		LeaseID:   leaseID,
-		Reason:   reason,
+		Reason:    reason,
 		RequestID: generateRequestID(),
 	}
 

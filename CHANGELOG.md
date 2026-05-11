@@ -527,16 +527,28 @@ None - backward compatible. Existing agents with SERVER_ID continue working.
 
 ---
 
-## [Unreleased]
+## [0.12.0] - 2026-05-10
 
-### Planned
-- Trust Tunnel (AdGuard) integration
-- Docker container support
-- Automatic failover between servers
-- Real-time latency monitoring via WebSocket
-- Automatic certificate renewal
-- Multi-WAN support
-- GeoDNS integration
+### BREAKING CHANGES
+
+- **Removed Outline VPN support** — Outline Manager integration completely removed
+- **Removed TrustTunnel support** — AdGuard TrustTunnel client eliminated
+- **WireGuard-only agent** — Agent now manages WireGuard exclusively
+
+### Removed
+- 3 Outline API endpoints (`/outline/keys*`)
+- 8 TrustTunnel API endpoints (`/trusttunnel/*`)
+- `OUTLINE_API_URL`, `OUTLINE_VERIFY_SSL`, `SUPPORTS_OUTLINE` config vars
+- All `TRUSTTUNNEL_*` configuration variables
+- `github.com/pelletier/go-toml/v2` dependency
+- Outline metrics collection (`outline`, `detailed` fields)
+- TrustTunnel metrics and export features
+
+### Migration
+Existing deployments must:
+1. Update backend to accept agents without `supports_outline` field
+2. Deploy new agent binary (v0.12.0+)
+3. Clean up TrustTunnel config files if present (`/opt/trusttunnel/`)
 
 ---
 

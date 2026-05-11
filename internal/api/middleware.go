@@ -168,7 +168,8 @@ func APIKeyMiddlewareWithRateLimit(validKey string, rl *HybridRateLimiter) gin.H
 }
 
 // APIKeyMiddleware validates X-API-Key header (legacy, kept for backward compatibility)
-// Deprecated: Use APIKeyMiddlewareWithRateLimit instead
+//
+// Deprecated: Use APIKeyMiddlewareWithRateLimit instead.
 func APIKeyMiddleware(validKey string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		apiKey := c.GetHeader("X-API-Key")
