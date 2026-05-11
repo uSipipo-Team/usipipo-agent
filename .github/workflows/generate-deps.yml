@@ -18,11 +18,14 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v6
       with:
-        go-version: 'stable'
+        go-version: '1.26'
         cache: true
 
     - name: Run go mod tidy
       run: go mod tidy
+
+    - name: Verify dependencies
+      run: go mod verify
 
     - name: Create Pull Request
       id: cpr

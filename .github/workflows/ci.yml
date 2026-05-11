@@ -21,7 +21,7 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v6
       with:
-        go-version: 'stable'
+        go-version: '1.26'
         cache: true
 
     - name: Lint
@@ -41,11 +41,14 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v6
       with:
-        go-version: 'stable'
+        go-version: '1.26'
         cache: true
 
     - name: Download dependencies
       run: go mod download
+
+    - name: Verify dependencies
+      run: go mod verify
 
     - name: Build
       run: go build -v ./...
