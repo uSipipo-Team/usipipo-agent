@@ -19,8 +19,6 @@ type Config struct {
 	BackendAPIURL           string
 	BackendAPIKey           string
 	ServerID                string
-	OutlineAPIURL           string
-	OutlineVerifySSL        bool
 	WireGuardInterface     string
 	WireGuardServerIP      string
 	WireGuardServerPort   int
@@ -28,7 +26,6 @@ type Config struct {
 	WireGuardStartIP        int
 	WireGuardEndIP         int
 	AgentURL               string
-	SupportsOutline       bool
 	SupportsWireGuard     bool
 	RateLimitEnabled      bool
 	RateLimitRPS          float64
@@ -40,11 +37,6 @@ type Config struct {
 	GeoIPRetryBackoff     time.Duration
 	WGValidateKeys        bool
 	ConfigStrictPerms     bool
-	TrustTunnelBinary     string
-	TrustTunnelConfigDir  string
-	TrustTunnelDomain    string
-	TrustTunnelPort      int
-	TrustTunnelPublicPort int
 	EnableDBIPAllocation bool
 	WGLockPath           string
 	ReconcileInterval    time.Duration
@@ -94,8 +86,6 @@ func Load() *Config {
 		BackendAPIURL:          getEnv("BACKEND_API_URL", getEnv("BACKEND_URL", "")),
 		BackendAPIKey:          getEnv("BACKEND_API_KEY", ""),
 		ServerID:               getEnv("SERVER_ID", ""),
-		OutlineAPIURL:          getEnv("OUTLINE_API_URL", "http://localhost:8081"),
-		OutlineVerifySSL:        getEnv("OUTLINE_VERIFY_SSL", "true") == "true", // SECURE DEFAULT
 		WireGuardInterface:     getEnv("WG_INTERFACE", "wg0"),
 		WireGuardServerIP:      getEnv("WG_SERVER_IP", "165.140.241.96"),
 		WireGuardServerPort:   wgPort,
@@ -103,38 +93,12 @@ func Load() *Config {
 		WireGuardStartIP:      startIP,
 		WireGuardEndIP:      endIP,
 		AgentURL:            getEnv("AGENT_URL", "http://localhost:8080"),
-		SupportsOutline:     getEnv("SUPPORTS_OUTLINE", "true") == "true",
 		SupportsWireGuard:   getEnv("SUPPORTS_WIREGUARD", "true") == "true",
 		RateLimitEnabled:  enabled,
 		RateLimitRPS:      rps,
 		RateLimitBurst:    burst,
 		HTTPClientTimeout: timeout,
 	}
-	
-	// Log warning if TLS verification is disabled
-	if !cfg.OutlineVerifySSL {
-		log.Println("⚠️  WARNING: TLS verification is DISABLED (OUTLINE_VERIFY_SSL=false)")
-		log.Println("   This is INSECURE for production use and should only be used for development")
-		log.Println("   with self-signed certificates. Set OUTLINE_VERIFY_SSL=true for secure operation.")
-	}
-
-	// Parse TrustTunnel port
-	ttPort, err := strconv.Atoi(getEnv("TRUSTTUNNEL_PORT", "8443"))
-	if err != nil || ttPort < 1 || ttPort > 65535 {
-		log.Printf("WARNING: Invalid TRUSTTUNNEL_PORT '%s'. Using default 8443", getEnv("TRUSTTUNNEL_PORT", "8443"))
-		ttPort = 8443
-	}
-
-	cfg.TrustTunnelBinary = getEnv("TRUSTTUNNEL_BINARY", "/opt/trusttunnel/trusttunnel_endpoint")
-	cfg.TrustTunnelConfigDir = getEnv("TRUSTTUNNEL_CONFIG_DIR", "/opt/trusttunnel")
-	cfg.TrustTunnelDomain = getEnv("TRUSTTUNNEL_DOMAIN", "usipipotunnel.duckdns.org")
-	cfg.TrustTunnelPort = ttPort
-	cfg.TrustTunnelPublicPort, _ = strconv.Atoi(getEnv("TRUSTTUNNEL_PUBLIC_PORT", "443"))
-	if cfg.TrustTunnelPublicPort == 0 {
-		cfg.TrustTunnelPublicPort = 443
-	}
-
-	// DB-first IP allocation settings
 	cfg.EnableDBIPAllocation = getEnv("ENABLE_DB_IP_ALLOCATION", "false") == "true"
 	cfg.WGLockPath = getEnv("WG_LOCK_PATH", "/var/run/usipipo-agent/ip_alloc.lock")
 
