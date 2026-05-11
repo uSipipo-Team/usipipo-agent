@@ -132,12 +132,7 @@ SERVER_ID=
 # Agent public URL
 AGENT_URL=http://usipipousa.duckdns.org:8080
 
-# Feature flags
-SUPPORTS_OUTLINE=true
-SUPPORTS_WIREGUARD=true
-
-# VPN configuration
-OUTLINE_API_URL=https://your-vps-ip:53206/your-access-key
+# WireGuard configuration
 WG_INTERFACE=wg0
 ```
 
@@ -207,7 +202,6 @@ During registration, the agent automatically collects and sends:
 | `os_type` | Operating system | `linux` |
 | `os_arch` | Architecture | `amd64` |
 | `agent_url` | Agent API URL | `http://usipipousa.duckdns.org:8080` |
-| `supports_outline` | Outline support | `true` |
 | `supports_wireguard` | WireGuard support | `true` |
 
 ---
@@ -456,7 +450,6 @@ No action needed. Existing agents continue working with their `SERVER_ID`.
   "os_type": "linux",
   "os_arch": "amd64",
   "agent_url": "http://usipipousa.duckdns.org:8080",
-  "supports_outline": true,
   "supports_wireguard": true,
   "agent_api_key": "agent_a1b2c3d4e5f6g7h8i9j0k1l2m3n4o5p6"
 }
