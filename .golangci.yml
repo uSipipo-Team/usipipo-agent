@@ -10,7 +10,6 @@ linters:
     - gosimple
     - unused
     - ineffassign
-    - typecheck
     - unconvert
     - prealloc
     - gocritic
