@@ -29,18 +29,13 @@ func ValidateKeyEntropy(hexKey string) bool {
 
 	// Basic check: reject if all bytes are the same (weak pattern)
 	firstByte := keyBytes[0]
-	allSame := true
 	for _, b := range keyBytes[1:] {
 		if b != firstByte {
-			allSame = false
-			break
+			return true
 		}
 	}
-	if allSame {
-		return false
-	}
 
-	return true
+	return false
 }
 
 // GenerateValidatedPrivateKey generates a WireGuard private key with entropy validation

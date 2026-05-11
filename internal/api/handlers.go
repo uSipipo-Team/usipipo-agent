@@ -1,7 +1,6 @@
 package api
 
 import (
-	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -12,12 +11,6 @@ import (
 	"github.com/uSipipo-Team/usipipo-agent/internal/utils/validation"
 	"github.com/uSipipo-Team/usipipo-agent/internal/vpn"
 )
-
-// logWarning logs a warning message to stderr
-// This wrapper avoids errcheck linter issues with fmt.Printf
-func logWarning(format string, args ...interface{}) {
-	log.Printf("[WARNING] "+format, args...)
-}
 
 var metricsCollector *metrics.Collector
 
