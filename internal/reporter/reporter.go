@@ -23,19 +23,13 @@ type Reporter struct {
 }
 
 // NewReporter creates a new metrics reporter with secure TLS configuration
-func NewReporter(backendURL, serverID, apiKey string, collector *metrics.Collector, verifySSL bool, timeout time.Duration) *Reporter {
+func NewReporter(backendURL, serverID, apiKey string, collector *metrics.Collector, timeout time.Duration) *Reporter {
 	client := resty.New()
 	
 	// Configure TLS with secure defaults
-	tlsConfig := &tls.Config{
+	client.SetTLSClientConfig(&tls.Config{
 		MinVersion: tls.VersionTLS12, // Enforce TLS 1.2 minimum
-	}
-	
-	if !verifySSL {
-		tlsConfig.InsecureSkipVerify = true
-	}
-	
-	client.SetTLSClientConfig(tlsConfig)
+	})
 	client.SetTimeout(timeout)
 	// Note: resty v2.11.0 doesn't have SetConnectTimeout, using SetTimeout instead
 
