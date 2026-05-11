@@ -751,10 +751,7 @@ BACKEND_URL=http://localhost:8001
 # Server ID (unique identifier for this VPS)
 SERVER_ID=$SERVER_ID
 
-# Outline Configuration
-OUTLINE_API_URL=http://localhost:8081
-
-# WireGuard Configuration
+        # WireGuard Configuration
 WG_INTERFACE=wg0
 WG_SERVER_IP=localhost
 WG_SERVER_PORT=51820
