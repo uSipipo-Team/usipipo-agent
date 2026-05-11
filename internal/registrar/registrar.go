@@ -197,7 +197,7 @@ func getVersion() string {
 	return Version
 }
 
-var Version = "0.2.0-dev"
+var Version = "0.12.0"
 
 func saveServerIDToEnv(serverID string) error {
 	envPath := "/opt/usipipo-agent/.env"

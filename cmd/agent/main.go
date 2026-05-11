@@ -16,7 +16,7 @@ import (
 )
 
 // Version is set at build time via ldflags
-var Version = "0.2.0-dev"
+var Version = "v0.12.0"
 
 // Global references for cleanup
 var reconcileLoop *vpn.ReconciliationLoop
