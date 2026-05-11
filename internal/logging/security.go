@@ -12,11 +12,11 @@ import (
 
 // SecurityLogger handles structured security event logging
 type SecurityLogger struct {
-	mu       sync.Mutex
-	out      io.Writer
-	level    LogLevel
-	serverID string
-	version  string
+	mu        sync.Mutex
+	out       io.Writer
+	level     LogLevel
+	serverID  string
+	version   string
 	startTime time.Time
 }
 
@@ -37,30 +37,30 @@ func (sl *SecurityLogger) log(entry LogEntry) {
 	if !sl.shouldLog(entry.Level) {
 		return
 	}
-	
+
 	sl.mu.Lock()
 	defer sl.mu.Unlock()
-	
+
 	// Add timestamp
 	entry.Timestamp = time.Now().UTC().Format(time.RFC3339)
-	
+
 	// Add server ID if not present
 	if entry.ServerID == "" {
 		entry.ServerID = sl.serverID
 	}
-	
+
 	// Sanitize all string fields
 	entry.IP = sanitizeString(entry.IP)
 	entry.Endpoint = sanitizeString(entry.Endpoint)
 	entry.Reason = sanitizeString(entry.Reason)
 	entry.UserAgent = sanitizeString(entry.UserAgent)
 	entry.Message = sanitizeString(entry.Message)
-	
+
 	// Sanitize details recursively
 	for key, value := range entry.Details {
 		entry.Details[key] = sanitizeValue(value)
 	}
-	
+
 	// Encode as JSON
 	data, err := json.Marshal(entry)
 	if err != nil {
@@ -80,10 +80,10 @@ func (sl *SecurityLogger) shouldLog(level LogLevel) bool {
 		WarnLevel:  1,
 		ErrorLevel: 2,
 	}
-	
+
 	entryLevel := levelOrder[level]
 	minLevel := levelOrder[sl.level]
-	
+
 	return entryLevel >= minLevel
 }
 
@@ -103,12 +103,12 @@ func (sl *SecurityLogger) LogAuthFailure(ip, endpoint, reason, userAgent string)
 // LogRateLimitExceeded logs a rate limit exceeded event
 func (sl *SecurityLogger) LogRateLimitExceeded(ip, endpoint string, requestsPerSecond float64) {
 	sl.log(LogEntry{
-		Level:   WarnLevel,
-		Event:   RateLimitExceededEvent,
-		IP:      ip,
+		Level:    WarnLevel,
+		Event:    RateLimitExceededEvent,
+		IP:       ip,
 		Endpoint: endpoint,
-		Reason:  "rate_limit",
-		Message: "Rate limit exceeded",
+		Reason:   "rate_limit",
+		Message:  "Rate limit exceeded",
 		Details: map[string]interface{}{
 			"requests_per_second": requestsPerSecond,
 		},

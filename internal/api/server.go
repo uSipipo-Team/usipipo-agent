@@ -119,11 +119,11 @@ func NewServer(apiKey string, rateConfig RateLimiterConfig) *Server {
 		Enabled:           rateConfig.Enabled,
 		RequestsPerSecond: rateConfig.RequestsPerSecond,
 		BurstSize:         rateConfig.BurstSize,
-		AuthRPS:           3.0,  // Stricter for auth endpoints
+		AuthRPS:           3.0, // Stricter for auth endpoints
 		AuthBurst:         5,
 		KeyRPS:            100.0, // Per-API-key limit
 		KeyBurst:          200,
-		LockoutThreshold:  10,    // 10 failed attempts
+		LockoutThreshold:  10, // 10 failed attempts
 		LockoutDuration:   5 * time.Minute,
 		BackoffBase:       1 * time.Second,
 		BackoffMax:        30 * time.Second,

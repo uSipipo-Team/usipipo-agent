@@ -28,20 +28,20 @@ const (
 
 // WireGuardClient handles communication with WireGuard interface
 type WireGuardClient struct {
-	interfaceName      string
-	configPath         string
-	serverIP           string
-	serverPort         int
-	clientDNS          string
-	client             *wgctrl.Client
-	networkCIDR        string
-	startIP            int
-	endIP              int
-	ipAllocClient     *IPAllocationClient
-	logger            *log.Logger
+	interfaceName    string
+	configPath       string
+	serverIP         string
+	serverPort       int
+	clientDNS        string
+	client           *wgctrl.Client
+	networkCIDR      string
+	startIP          int
+	endIP            int
+	ipAllocClient    *IPAllocationClient
+	logger           *log.Logger
 	ipAllocationLock sync.Mutex
-	lockFilePath      string
-	validateKeys      bool
+	lockFilePath     string
+	validateKeys     bool
 }
 
 // WireGuardPeer represents a WireGuard peer
@@ -113,16 +113,16 @@ func NewWireGuardClientWithRange(interfaceName, configPath, serverIP string, ser
 	}
 
 	return &WireGuardClient{
-		interfaceName:   interfaceName,
-		configPath:      configPath,
-		serverIP:        serverIP,
-		serverPort:      serverPort,
-		clientDNS:       clientDNS,
-		client:          client,
-		networkCIDR:     networkCIDR,
-		startIP:         startIP,
-		endIP:           endIP,
-		validateKeys:    validateKeys,
+		interfaceName: interfaceName,
+		configPath:    configPath,
+		serverIP:      serverIP,
+		serverPort:    serverPort,
+		clientDNS:     clientDNS,
+		client:        client,
+		networkCIDR:   networkCIDR,
+		startIP:       startIP,
+		endIP:         endIP,
+		validateKeys:  validateKeys,
 	}, nil
 }
 
@@ -256,7 +256,7 @@ func (c *WireGuardClient) createPeerDBFirst(ctx context.Context, name string) (*
 	peerConfig := wgtypes.PeerConfig{
 		PublicKey:         publicKey,
 		PresharedKey:      &psk,
-		AllowedIPs:       []net.IPNet{{IP: peerIP, Mask: net.CIDRMask(32, 32)}},
+		AllowedIPs:        []net.IPNet{{IP: peerIP, Mask: net.CIDRMask(32, 32)}},
 		ReplaceAllowedIPs: false,
 	}
 	config := wgtypes.Config{
@@ -436,7 +436,7 @@ func (c *WireGuardClient) DeletePeer(ctx context.Context, name string) error {
 		// If peer doesn't exist, wgctrl may return an error
 		// Treat "not found" errors as success (idempotent behavior)
 		if strings.Contains(err.Error(), "no such process") ||
-		   strings.Contains(err.Error(), "not found") {
+			strings.Contains(err.Error(), "not found") {
 			return nil
 		}
 		return fmt.Errorf("failed to remove peer: %w", err)

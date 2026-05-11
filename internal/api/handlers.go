@@ -42,10 +42,10 @@ func HealthHandler(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"status":          "healthy",
-		"agent_status":    "online",
-		"wireguard":       wireguardStatus,
-		"timestamp":       time.Now().Unix(),
+		"status":       "healthy",
+		"agent_status": "online",
+		"wireguard":    wireguardStatus,
+		"timestamp":    time.Now().Unix(),
 	})
 }
 
@@ -74,7 +74,6 @@ func MetricsHandler(c *gin.Context) {
 		return
 	}
 
-
 	c.JSON(http.StatusOK, m)
 }
 
@@ -89,9 +88,6 @@ type CreateKeyResponse struct {
 	Name      string `json:"name"`
 	AccessURL string `json:"access_url"`
 }
-
-
-
 
 // CreateWireGuardPeerHandler creates a new WireGuard peer
 func CreateWireGuardPeerHandler(c *gin.Context) {
@@ -121,10 +117,10 @@ func CreateWireGuardPeerHandler(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, gin.H{
-		"public_key":  peer.PublicKey,
-		"name":        peer.Name,
-		"ip_address":  peer.IPAddress,
-		"config":      peer.Config,
+		"public_key": peer.PublicKey,
+		"name":       peer.Name,
+		"ip_address": peer.IPAddress,
+		"config":     peer.Config,
 	})
 }
 
@@ -150,13 +146,13 @@ func DeleteWireGuardPeerHandler(c *gin.Context) {
 	if err != nil {
 		// Check if error is "peer not found" - treat as success (idempotent)
 		if strings.Contains(err.Error(), "peer not found") ||
-		   strings.Contains(err.Error(), "no such process") ||
-		   strings.Contains(err.Error(), "not found") {
+			strings.Contains(err.Error(), "no such process") ||
+			strings.Contains(err.Error(), "not found") {
 			// Peer already deleted or doesn't exist - return success
 			c.Status(http.StatusNoContent)
 			return
 		}
-		
+
 		// Real error - return 500
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -189,8 +185,8 @@ func GetWireGuardPeerUsageHandler(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"name":         name,
-		"bytes_used":   bytesUsed,
+		"name":       name,
+		"bytes_used": bytesUsed,
 	})
 }
 
@@ -216,7 +212,7 @@ func RegenerateWireGuardPeerHandler(c *gin.Context) {
 	if err != nil {
 		// Ignore "not found" errors - we're going to recreate anyway
 		if !strings.Contains(err.Error(), "not found") &&
-		   !strings.Contains(err.Error(), "no such process") {
+			!strings.Contains(err.Error(), "no such process") {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
@@ -230,12 +226,9 @@ func RegenerateWireGuardPeerHandler(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, gin.H{
-		"public_key":  peer.PublicKey,
-		"name":        peer.Name,
-		"ip_address":  peer.IPAddress,
-		"config":      peer.Config,
+		"public_key": peer.PublicKey,
+		"name":       peer.Name,
+		"ip_address": peer.IPAddress,
+		"config":     peer.Config,
 	})
 }
-
-
-

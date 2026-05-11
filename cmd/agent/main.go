@@ -64,7 +64,7 @@ func main() {
 	log.Printf("Server ID: %s", cfg.ServerID)
 	log.Printf("Backend URL: %s", cfg.BackendURL)
 	log.Printf("WireGuard Interface: %s (%s:%d)", cfg.WireGuardInterface, cfg.WireGuardServerIP, cfg.WireGuardServerPort)
-	log.Printf("Rate Limiting: enabled=%v, rps=%.1f, burst=%d", 
+	log.Printf("Rate Limiting: enabled=%v, rps=%.1f, burst=%d",
 		cfg.RateLimitEnabled, cfg.RateLimitRPS, cfg.RateLimitBurst)
 
 	// Initialize metrics collector

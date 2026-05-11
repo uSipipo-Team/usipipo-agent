@@ -13,11 +13,11 @@ import (
 
 // Collector collects system and VPN metrics
 type Collector struct {
-	serverID       string
-	cache          *ServerMetrics
-	cacheTime      time.Time
-	cacheTTL       time.Duration
-	wgCollector    *vpn.WireGuardMetricsCollector
+	serverID    string
+	cache       *ServerMetrics
+	cacheTime   time.Time
+	cacheTTL    time.Duration
+	wgCollector *vpn.WireGuardMetricsCollector
 }
 
 // NewCollector creates a new metrics collector
@@ -32,7 +32,6 @@ func NewCollector(serverID string) *Collector {
 func (c *Collector) SetWireGuardCollector(wgCollector *vpn.WireGuardMetricsCollector) {
 	c.wgCollector = wgCollector
 }
-
 
 // GetMetrics returns current metrics (cached for cacheTTL duration)
 func (c *Collector) GetMetrics(ctx context.Context) (*ServerMetrics, error) {

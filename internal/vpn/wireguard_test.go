@@ -223,5 +223,3 @@ func TestGeneratePrivateKey(t *testing.T) {
 		t.Error("expected non-empty key string")
 	}
 }
-
-

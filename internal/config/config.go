@@ -13,30 +13,30 @@ import (
 
 // Config holds the agent configuration
 type Config struct {
-	Port                     string
-	APIKey                  string
-	BackendURL              string
-	BackendAPIURL           string
-	BackendAPIKey           string
-	ServerID                string
-	WireGuardInterface     string
-	WireGuardServerIP      string
-	WireGuardServerPort   int
-	WireGuardNetworkCIDR    string
-	WireGuardStartIP        int
-	WireGuardEndIP         int
-	AgentURL               string
-	SupportsWireGuard     bool
-	RateLimitEnabled      bool
-	RateLimitRPS          float64
-	RateLimitBurst        int
-	HTTPClientTimeout     time.Duration
-	GeoIPEnabled          bool
-	GeoIPTimeout          time.Duration
-	GeoIPMaxRetries       int
-	GeoIPRetryBackoff     time.Duration
-	WGValidateKeys        bool
-	ConfigStrictPerms     bool
+	Port                 string
+	APIKey               string
+	BackendURL           string
+	BackendAPIURL        string
+	BackendAPIKey        string
+	ServerID             string
+	WireGuardInterface   string
+	WireGuardServerIP    string
+	WireGuardServerPort  int
+	WireGuardNetworkCIDR string
+	WireGuardStartIP     int
+	WireGuardEndIP       int
+	AgentURL             string
+	SupportsWireGuard    bool
+	RateLimitEnabled     bool
+	RateLimitRPS         float64
+	RateLimitBurst       int
+	HTTPClientTimeout    time.Duration
+	GeoIPEnabled         bool
+	GeoIPTimeout         time.Duration
+	GeoIPMaxRetries      int
+	GeoIPRetryBackoff    time.Duration
+	WGValidateKeys       bool
+	ConfigStrictPerms    bool
 	EnableDBIPAllocation bool
 	WGLockPath           string
 	ReconcileInterval    time.Duration
@@ -80,24 +80,24 @@ func Load() *Config {
 	}
 
 	cfg := &Config{
-		Port:                     getEnv("AGENT_PORT", "8080"),
-		APIKey:                  getEnv("AGENT_API_KEY", ""),
-		BackendURL:              getEnv("BACKEND_URL", ""),
-		BackendAPIURL:          getEnv("BACKEND_API_URL", getEnv("BACKEND_URL", "")),
-		BackendAPIKey:          getEnv("BACKEND_API_KEY", ""),
-		ServerID:               getEnv("SERVER_ID", ""),
-		WireGuardInterface:     getEnv("WG_INTERFACE", "wg0"),
-		WireGuardServerIP:      getEnv("WG_SERVER_IP", "165.140.241.96"),
-		WireGuardServerPort:   wgPort,
-		WireGuardNetworkCIDR:  getEnv("WIREGUARD_NETWORK_CIDR", "10.88.88.0/24"),
-		WireGuardStartIP:      startIP,
-		WireGuardEndIP:      endIP,
-		AgentURL:            getEnv("AGENT_URL", "http://localhost:8080"),
-		SupportsWireGuard:   getEnv("SUPPORTS_WIREGUARD", "true") == "true",
-		RateLimitEnabled:  enabled,
-		RateLimitRPS:      rps,
-		RateLimitBurst:    burst,
-		HTTPClientTimeout: timeout,
+		Port:                 getEnv("AGENT_PORT", "8080"),
+		APIKey:               getEnv("AGENT_API_KEY", ""),
+		BackendURL:           getEnv("BACKEND_URL", ""),
+		BackendAPIURL:        getEnv("BACKEND_API_URL", getEnv("BACKEND_URL", "")),
+		BackendAPIKey:        getEnv("BACKEND_API_KEY", ""),
+		ServerID:             getEnv("SERVER_ID", ""),
+		WireGuardInterface:   getEnv("WG_INTERFACE", "wg0"),
+		WireGuardServerIP:    getEnv("WG_SERVER_IP", "165.140.241.96"),
+		WireGuardServerPort:  wgPort,
+		WireGuardNetworkCIDR: getEnv("WIREGUARD_NETWORK_CIDR", "10.88.88.0/24"),
+		WireGuardStartIP:     startIP,
+		WireGuardEndIP:       endIP,
+		AgentURL:             getEnv("AGENT_URL", "http://localhost:8080"),
+		SupportsWireGuard:    getEnv("SUPPORTS_WIREGUARD", "true") == "true",
+		RateLimitEnabled:     enabled,
+		RateLimitRPS:         rps,
+		RateLimitBurst:       burst,
+		HTTPClientTimeout:    timeout,
 	}
 	cfg.EnableDBIPAllocation = getEnv("ENABLE_DB_IP_ALLOCATION", "false") == "true"
 	cfg.WGLockPath = getEnv("WG_LOCK_PATH", "/var/run/usipipo-agent/ip_alloc.lock")

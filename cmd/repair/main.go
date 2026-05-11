@@ -1,19 +1,20 @@
 // WireGuard IP Allocation Repair CLI Tool
 //
 // Commands:
-//   wg-ip-allocation audit         - Audit mode: reports drift without fixing
-//   wg-ip-allocation fix-drift    - Fix drift issues automatically
-//   wg-ip-allocation force-release - Force release an IP
-//   wg-ip-allocation import-peer  - Import manual peer to DB
-//   wg-ip-allocation pool-status - Show pool utilization
-//   wg-ip-allocation list        - List all allocations
+//
+//	wg-ip-allocation audit         - Audit mode: reports drift without fixing
+//	wg-ip-allocation fix-drift    - Fix drift issues automatically
+//	wg-ip-allocation force-release - Force release an IP
+//	wg-ip-allocation import-peer  - Import manual peer to DB
+//	wg-ip-allocation pool-status - Show pool utilization
+//	wg-ip-allocation list        - List all allocations
 package main
 
 import (
 	"bytes"
 	"context"
-	"errors"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -34,9 +35,9 @@ var (
 type Config struct {
 	BackendAPIURL string
 	BackendAPIKey string
-	ServerID     string
-	DryRun       bool
-	JSONOutput   bool
+	ServerID      string
+	DryRun        bool
+	JSONOutput    bool
 }
 
 var cfg Config
@@ -363,11 +364,11 @@ type APIResponse struct {
 }
 
 type AuditResponse struct {
-	ServerID      string                   `json:"server_id"`
-	TotalLeases   int                      `json:"total_leases"`
-	DriftedLeases []DriftedLease            `json:"drifted_leases,omitempty"`
-	DatabaseIPs   []string                 `json:"database_ips"`
-	InterfaceIPs []string                 `json:"interface_ips"`
+	ServerID      string         `json:"server_id"`
+	TotalLeases   int            `json:"total_leases"`
+	DriftedLeases []DriftedLease `json:"drifted_leases,omitempty"`
+	DatabaseIPs   []string       `json:"database_ips"`
+	InterfaceIPs  []string       `json:"interface_ips"`
 }
 
 type DriftedLease struct {
@@ -505,9 +506,9 @@ func runFixDrift() error {
 
 type ReleaseRequest struct {
 	ServerID string `json:"server_id"`
-	IP      string `json:"ip_address,omitempty"`
-	LeaseID string `json:"lease_id,omitempty"`
-	Reason  string `json:"reason"`
+	IP       string `json:"ip_address,omitempty"`
+	LeaseID  string `json:"lease_id,omitempty"`
+	Reason   string `json:"reason"`
 }
 
 func runForceRelease(ip, leaseID string) error {
@@ -571,9 +572,9 @@ func runForceRelease(ip, leaseID string) error {
 }
 
 type ImportRequest struct {
-	ServerID   string `json:"server_id"`
-	PublicKey  string `json:"public_key"`
-	IPAddress  string `json:"ip_address"`
+	ServerID  string `json:"server_id"`
+	PublicKey string `json:"public_key"`
+	IPAddress string `json:"ip_address"`
 }
 
 func runImportPeer(pubkey, ip string) error {

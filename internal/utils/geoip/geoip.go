@@ -52,7 +52,12 @@ func GetLocation(cfg *config.Config) (*GeoIPResponse, error) {
 
 	if resp == nil || resp.StatusCode() != 200 {
 		return nil, fmt.Errorf("geo API returned status %d after %d retries",
-			func() int { if resp != nil { return resp.StatusCode() }; return 0 }(),
+			func() int {
+				if resp != nil {
+					return resp.StatusCode()
+				}
+				return 0
+			}(),
 			cfg.GeoIPMaxRetries)
 	}
 

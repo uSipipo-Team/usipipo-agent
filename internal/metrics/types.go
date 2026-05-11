@@ -15,7 +15,7 @@ type SystemMetrics struct {
 // VPNMetrics represents VPN-specific metrics
 type VPNMetrics struct {
 	WireGuard struct {
-		ActivePeers         int    `json:"active_peers"`
+		ActivePeers           int    `json:"active_peers"`
 		TotalBytesTransferred uint64 `json:"total_bytes_transferred"`
 	} `json:"wireguard"`
 }

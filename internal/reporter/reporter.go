@@ -25,7 +25,7 @@ type Reporter struct {
 // NewReporter creates a new metrics reporter with secure TLS configuration
 func NewReporter(backendURL, serverID, apiKey string, collector *metrics.Collector, timeout time.Duration) *Reporter {
 	client := resty.New()
-	
+
 	// Configure TLS with secure defaults
 	client.SetTLSClientConfig(&tls.Config{
 		MinVersion: tls.VersionTLS12, // Enforce TLS 1.2 minimum
@@ -37,7 +37,7 @@ func NewReporter(backendURL, serverID, apiKey string, collector *metrics.Collect
 	client.SetRetryCount(3)
 	client.SetRetryWaitTime(2 * time.Second)
 	client.SetRetryMaxWaitTime(10 * time.Second)
-	
+
 	return &Reporter{
 		backendURL: backendURL,
 		serverID:   serverID,
