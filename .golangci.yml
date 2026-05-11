@@ -1,0 +1,22 @@
+version: "2"
+run:
+  timeout: 5m
+  go: "1.26"
+linters:
+  default: none
+  enable:
+    - govet
+    - staticcheck
+    - gosimple
+    - unused
+    - ineffassign
+    - typecheck
+    - unconvert
+    - prealloc
+    - gocritic
+  disable:
+    - errcheck
+  settings:
+    gocritic:
+      enabled-checks:
+        - ruleguard

@@ -29,7 +29,7 @@ jobs:
       run: go mod verify
 
     - name: Test with race detection
-      run: go test -race -v ./...
+      run: go test -race -timeout 5m -v ./...
 
   build:
     needs: test
