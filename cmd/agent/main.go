@@ -63,7 +63,6 @@ func main() {
 	log.Printf("Starting VPN Agent on port %s", cfg.Port)
 	log.Printf("Server ID: %s", cfg.ServerID)
 	log.Printf("Backend URL: %s", cfg.BackendURL)
-	log.Printf("Outline API URL: %s", cfg.OutlineAPIURL)
 	log.Printf("WireGuard Interface: %s (%s:%d)", cfg.WireGuardInterface, cfg.WireGuardServerIP, cfg.WireGuardServerPort)
 	log.Printf("Rate Limiting: enabled=%v, rps=%.1f, burst=%d", 
 		cfg.RateLimitEnabled, cfg.RateLimitRPS, cfg.RateLimitBurst)
@@ -71,10 +70,6 @@ func main() {
 	// Initialize metrics collector
 	metricsCollector := metrics.NewCollector(cfg.ServerID)
 	api.SetMetricsCollector(metricsCollector)
-
-	// Initialize Outline client
-	outlineClient := vpn.NewOutlineClient(cfg.OutlineAPIURL, !cfg.OutlineVerifySSL)
-	api.SetOutlineClient(outlineClient)
 
 	// Initialize WireGuard client using wgctrl
 	wireguardClient, err := vpn.NewWireGuardClient(
@@ -117,35 +112,13 @@ func main() {
 	wireguardMetricsCollector := vpn.NewWireGuardMetricsCollector(cfg.WireGuardInterface)
 	metricsCollector.SetWireGuardCollector(wireguardMetricsCollector)
 
-	// Initialize TrustTunnel client
-	if _, err := os.Stat(cfg.TrustTunnelBinary); err == nil {
-		trustTunnelClient := vpn.NewTrustTunnelClient(
-			cfg.TrustTunnelBinary,
-			cfg.TrustTunnelConfigDir,
-			cfg.TrustTunnelDomain,
-			cfg.TrustTunnelPort,
-			cfg.TrustTunnelPublicPort,
-		)
-		api.SetTrustTunnelClient(trustTunnelClient)
-		log.Printf("TrustTunnel client initialized (binary: %s, domain: %s:%d, public: %d)",
-			cfg.TrustTunnelBinary, cfg.TrustTunnelDomain, cfg.TrustTunnelPort, cfg.TrustTunnelPublicPort)
-	} else {
-		log.Printf("TrustTunnel binary not found at %s - TrustTunnel features disabled", cfg.TrustTunnelBinary)
-	}
-
-	// Initialize TrustTunnel metrics collector
-	ttMetricsURL := "http://127.0.0.1:1987/metrics"
-	trustTunnelMetricsCollector := vpn.NewTrustTunnelMetricsCollector(ttMetricsURL)
-	api.SetTrustTunnelMetricsCollector(trustTunnelMetricsCollector)
-	metricsCollector.SetTrustTunnelCollector(trustTunnelMetricsCollector)
-
 	// Create HTTP server with rate limiting
 	rateConfig := api.RateLimiterConfig{
 		RequestsPerSecond: cfg.RateLimitRPS,
 		BurstSize:         cfg.RateLimitBurst,
 		Enabled:           cfg.RateLimitEnabled,
 	}
-	server := api.NewServer(cfg.APIKey, cfg.OutlineAPIURL, rateConfig)
+	server := api.NewServer(cfg.APIKey, rateConfig)
 
 	// Initialize security logger
 	logLevel := logging.ParseLogLevel(os.Getenv("LOG_LEVEL"))
@@ -162,7 +135,6 @@ func main() {
 		cfg.ServerID,
 		cfg.APIKey,
 		metricsCollector,
-		cfg.OutlineVerifySSL,
 		cfg.HTTPClientTimeout,
 	)
 	go metricsReporter.Start()
