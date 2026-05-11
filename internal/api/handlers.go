@@ -29,11 +29,6 @@ func SetMetricsCollector(c *metrics.Collector) {
 	metricsCollector = c
 }
 
-// SetOutlineClient sets the Outline client instance
-func SetOutlineClient(client *vpn.OutlineClient) {
-	outlineClient = client
-}
-
 // SetWireGuardClient sets the WireGuard client instance
 func SetWireGuardClient(client *vpn.WireGuardClient) {
 	wireguardClient = client
@@ -69,7 +64,7 @@ func StatusHandler(c *gin.Context) {
 	})
 }
 
-// MetricsHandler returns detailed system metrics including Outline
+// MetricsHandler returns detailed system metrics
 func MetricsHandler(c *gin.Context) {
 	if metricsCollector == nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -249,9 +244,5 @@ func RegenerateWireGuardPeerHandler(c *gin.Context) {
 	})
 }
 
-// CreateTrustTunnelClientRequest represents the request to create a TrustTunnel client
-type CreateTrustTunnelClientRequest struct {
-	Username string `json:"username" binding:"required"`
-	Password string `json:"password" binding:"required"`
-}
+
 
